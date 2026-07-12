@@ -1,0 +1,30 @@
+server:
+  port: ${PORT:8082}
+
+spring:
+  application:
+    name: cart
+  datasource:
+    url: ${CART_DB_URL:jdbc:postgresql://localhost:5433/cart}
+    username: ${CART_DB_USER:cart}
+    password: ${CART_DB_PASSWORD:cart}
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+cart:
+  cors:
+    allowed-origins: ${CART_CORS_ALLOWED_ORIGINS:http://localhost:5174}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
