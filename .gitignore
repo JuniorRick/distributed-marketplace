@@ -1,0 +1,22 @@
+# Java
+target/
+*.class
+*.log
+
+# Node
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local config
+.env
