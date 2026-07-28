@@ -1,0 +1,36 @@
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: var(--mp-color-page);
+}
+
+body {
+  margin: 0;
+  color: var(--mp-color-text);
+  background: var(--mp-color-page);
+  font-family: var(--mp-font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+h2,
+p {
+  margin-top: 0;
+}

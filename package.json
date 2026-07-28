@@ -1,0 +1,14 @@
+{
+  "name": "distributed-marketplace",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "apps/*/frontend",
+    "packages/*"
+  ],
+  "scripts": {
+    "build:catalog-ui": "npm --prefix apps/catalog/frontend run build",
+    "build:cart-ui": "npm --prefix apps/cart/frontend run build",
+    "build:frontends": "npm run build:catalog-ui && npm run build:cart-ui"
+  }
+}

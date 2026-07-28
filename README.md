@@ -36,6 +36,11 @@ Not owned by catalog:
 Start the catalog database:
 
 ```powershell
+cd C:\Users\estinca\IdeaProjects\distributed-marketplace
+
+# reset already-ran changesets
+docker compose -f infra/docker-compose.yml down -v --remove-orphans
+
 docker compose -f infra/docker-compose.yml up -d catalog-db
 ```
 
@@ -66,3 +71,16 @@ Default URLs:
 2. Add cart as a separate SCS that calls catalog for product snapshots.
 3. Add orders as a separate SCS and keep order product snapshots immutable.
 4. Introduce catalog events only after the REST flow works.
+
+## Shared Frontend Styles
+
+Reusable UI tokens, base styles, and layout primitives live in `packages/marketplace-ui`.
+
+Each frontend imports the shared stylesheet before app-specific CSS:
+
+```ts
+import '@marketplace/ui/styles.css';
+import './styles.css';
+```
+
+Keep cross-module styling in the shared package and keep only SCS-specific presentation in each app frontend.

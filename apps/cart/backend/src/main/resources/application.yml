@@ -5,11 +5,13 @@ spring:
   application:
     name: cart
   datasource:
-    url: ${CART_DB_URL:jdbc:postgresql://localhost:5433/cart}
-    username: ${CART_DB_USER:cart}
-    password: ${CART_DB_PASSWORD:cart}
+    url: ${CART_DB_URL:jdbc:postgresql://localhost:5433/marketplace?currentSchema=cart}
+    username: ${CART_DB_USER:marketplace}
+    password: ${CART_DB_PASSWORD:marketplace}
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
+    default-schema: cart
+    liquibase-schema: cart
   jpa:
     hibernate:
       ddl-auto: validate
@@ -18,6 +20,9 @@ spring:
 cart:
   cors:
     allowed-origins: ${CART_CORS_ALLOWED_ORIGINS:http://localhost:5174}
+
+catalog:
+  base-url: ${CATALOG_BASE_URL:http://localhost:8081}
 
 management:
   endpoints:

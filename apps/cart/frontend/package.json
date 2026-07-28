@@ -1,15 +1,16 @@
 {
-  "name": "frontend",
+  "name": "cart-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 127.0.0.1 --port 5174",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview --port 4174"
   },
   "dependencies": {
+    "@marketplace/ui": "file:../../../packages/marketplace-ui",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

@@ -24,10 +24,6 @@ Database schema changes are managed by the Liquibase XML master changelog at `ba
 Infra:
 
 ```powershell
-cd C:\Users\estinca\IdeaProjects\distributed-marketplace
-
-# reset already-ran changesets
-docker compose -f infra\docker-compose.yml down -v
 
 docker compose -f infra/docker-compose.yml up -d catalog-db
 

@@ -5,11 +5,13 @@ spring:
   application:
     name: catalog
   datasource:
-    url: ${CATALOG_DB_URL:jdbc:postgresql://localhost:5433/catalog}
-    username: ${CATALOG_DB_USER:catalog}
-    password: ${CATALOG_DB_PASSWORD:catalog}
+    url: ${CATALOG_DB_URL:jdbc:postgresql://localhost:5433/marketplace?currentSchema=catalog}
+    username: ${CATALOG_DB_USER:marketplace}
+    password: ${CATALOG_DB_PASSWORD:marketplace}
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
+    default-schema: catalog
+    liquibase-schema: catalog
   jpa:
     hibernate:
       ddl-auto: validate

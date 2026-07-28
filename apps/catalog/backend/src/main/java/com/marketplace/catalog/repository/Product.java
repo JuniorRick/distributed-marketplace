@@ -1,9 +1,12 @@
-package com.marketplace.catalog.product;
+package com.marketplace.catalog.repository;
 
+import com.marketplace.catalog.product.ProductStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -17,7 +20,11 @@ import java.util.UUID;
 public class Product {
 
     @Id
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "public_id", unique = true)
+    private UUID publicId;
 
     @Column(nullable = false, unique = true, length = 64)
     private String sku;
@@ -38,7 +45,7 @@ public class Product {
     @Column(nullable = false, length = 32)
     private ProductStatus status;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
@@ -47,8 +54,8 @@ public class Product {
     protected Product() {
     }
 
-    public Product(UUID id, String sku, String name, String description, BigDecimal priceAmount, String currency, ProductStatus status) {
-        this.id = id;
+    public Product(UUID publicId, String sku, String name, String description, BigDecimal priceAmount, String currency, ProductStatus status) {
+        this.publicId = publicId;
         this.sku = sku;
         this.name = name;
         this.description = description;
@@ -64,8 +71,8 @@ public class Product {
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();
-        if (id == null) {
-            id = UUID.randomUUID();
+        if (publicId == null) {
+            publicId = UUID.randomUUID();
         }
         createdAt = now;
         updatedAt = now;
@@ -76,8 +83,12 @@ public class Product {
         updatedAt = Instant.now();
     }
 
-    public UUID getId() {
+    public Long getId() {
         return id;
+    }
+
+    public UUID getPublicId() {
+        return publicId;
     }
 
     public String getSku() {

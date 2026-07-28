@@ -1,13 +1,13 @@
 name: distributed-marketplace
 
 services:
-  catalog-db:
+  marketplace-db:
     image: postgres:17-alpine
-    container_name: marketplace-catalog-db
+    container_name: marketplace-db
     environment:
-      POSTGRES_DB: catalog
-      POSTGRES_USER: catalog
-      POSTGRES_PASSWORD: catalog
+      POSTGRES_DB: marketplace
+      POSTGRES_USER: marketplace
+      POSTGRES_PASSWORD: marketplace
     ports:
       - "5433:5432"
     healthcheck:
@@ -16,7 +16,8 @@ services:
       timeout: 3s
       retries: 10
     volumes:
-      - catalog-db-data:/var/lib/postgresql/data
+      - marketplace-db-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
 
 volumes:
-  catalog-db-data:
+  marketplace-db-data:

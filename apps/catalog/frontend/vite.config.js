@@ -6,6 +6,10 @@ export default defineConfig({
         port: 5173,
         proxy: {
             '/api': 'http://localhost:8081',
+            '/cart-api': {
+                target: 'http://localhost:8082',
+                rewrite: function (path) { return path.replace(/^\/cart-api/, ''); },
+            },
         },
     },
 });
