@@ -1,0 +1,122 @@
+name: distributed-marketplace
+
+services:
+  marketplace-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: marketplace
+      POSTGRES_USER: marketplace
+      POSTGRES_PASSWORD: marketplace
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marketplace -d marketplace"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - marketplace-db-data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+
+  catalog-backend:
+    image: distributed-marketplace-catalog-backend
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      args:
+        SERVICE: catalog
+    environment:
+      CATALOG_DB_URL: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=catalog
+      CATALOG_DB_USER: marketplace
+      CATALOG_DB_PASSWORD: marketplace
+    ports:
+      - "${CATALOG_API_PORT:-8081}:8081"
+    depends_on:
+      marketplace-db:
+        condition: service_healthy
+
+  cart-backend:
+    image: distributed-marketplace-cart-backend
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      args:
+        SERVICE: cart
+    environment:
+      CART_DB_URL: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=cart
+      CART_DB_USER: marketplace
+      CART_DB_PASSWORD: marketplace
+      CATALOG_BASE_URL: http://catalog-backend:8081
+    ports:
+      - "${CART_API_PORT:-8082}:8082"
+    depends_on:
+      marketplace-db:
+        condition: service_healthy
+      catalog-backend:
+        condition: service_started
+
+  orders-backend:
+    image: distributed-marketplace-orders-backend
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      args:
+        SERVICE: orders
+    environment:
+      ORDERS_DB_URL: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=orders
+      ORDERS_DB_USER: marketplace
+      ORDERS_DB_PASSWORD: marketplace
+      CART_BASE_URL: http://cart-backend:8082
+    ports:
+      - "${ORDERS_API_PORT:-8083}:8083"
+    depends_on:
+      marketplace-db:
+        condition: service_healthy
+      cart-backend:
+        condition: service_started
+
+  catalog-frontend:
+    image: distributed-marketplace-catalog-frontend
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        SERVICE: catalog
+    ports:
+      - "${CATALOG_UI_PORT:-5173}:80"
+    depends_on:
+      catalog-backend:
+        condition: service_started
+      cart-backend:
+        condition: service_started
+
+  cart-frontend:
+    image: distributed-marketplace-cart-frontend
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        SERVICE: cart
+    ports:
+      - "${CART_UI_PORT:-5174}:80"
+    depends_on:
+      cart-backend:
+        condition: service_started
+      orders-backend:
+        condition: service_started
+
+  orders-frontend:
+    image: distributed-marketplace-orders-frontend
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        SERVICE: orders
+    ports:
+      - "${ORDERS_UI_PORT:-5175}:80"
+    depends_on:
+      orders-backend:
+        condition: service_started
+
+volumes:
+  marketplace-db-data:

@@ -1,0 +1,8 @@
+.git
+.idea
+.run
+.codex_tmp
+**/node_modules
+**/dist
+**/target
+*.iml

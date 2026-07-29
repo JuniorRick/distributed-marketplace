@@ -5,11 +5,11 @@ This repository is intended to grow as a self-contained systems playground. Each
 Current systems:
 
 - `apps/catalog`: product catalog SCS
+- `apps/cart`: active cart and product snapshot SCS
+- `apps/orders`: synchronous checkout and immutable order snapshot SCS
 
 Suggested future systems:
 
-- `apps/cart`
-- `apps/orders`
 - `apps/inventory`
 - `apps/payments`
 - `apps/notifications`
@@ -33,37 +33,57 @@ Not owned by catalog:
 
 ## Run Locally
 
-Start the catalog database:
+Start the complete marketplace from the repository root:
 
-```powershell
-cd C:\Users\estinca\IdeaProjects\distributed-marketplace
-
-# reset already-ran changesets
-docker compose -f infra/docker-compose.yml down -v --remove-orphans
-
-docker compose -f infra/docker-compose.yml up -d marketplace-db
+```shell
+docker compose up --build
 ```
 
-Start the backend:
+Compose builds and starts PostgreSQL, the three Spring Boot backends, and the three Nginx-served React frontends. The containers communicate through the internal Compose network, so no Java, Maven, Node.js, or npm installation is required on the host.
 
-```powershell
-cd apps/catalog/backend
-mvn spring-boot:run
+Stop the stack while preserving PostgreSQL data:
+
+```shell
+docker compose down
 ```
 
-Start the frontend:
+Stop the stack and delete its PostgreSQL volume:
 
-```powershell
-cd apps/catalog/frontend
-npm install
-npm run dev
+```shell
+docker compose down --volumes
+```
+
+Rebuild one service after changing its dependencies:
+
+```shell
+docker compose up --build catalog-backend
+```
+
+Follow logs for the complete stack:
+
+```shell
+docker compose logs --follow
 ```
 
 Default URLs:
 
 - Catalog API: `http://localhost:8081/api/products`
-- Catalog health: `http://localhost:8081/actuator/health`
 - Catalog UI: `http://localhost:5173`
+- Cart API: `http://localhost:8082/api/carts`
+- Cart UI: `http://localhost:5174`
+- Orders API: `http://localhost:8083/api/orders`
+- Orders UI: `http://localhost:5175`
+
+## Synchronous Checkout
+
+Orders coordinates checkout without sharing database tables:
+
+1. Read the active Cart snapshot.
+2. Commit an immutable `PENDING` Order in the `orders` schema.
+3. Call Cart's idempotent checkout endpoint.
+4. Commit the Order transition to `CONFIRMED`.
+
+`orders.source_cart_id` is unique, so retrying order creation for the same Cart returns the existing Order. If the Cart call fails after the pending Order is committed, the next retry resumes that Order instead of rebuilding its snapshot.
 
 ## First Practice Goals
 
