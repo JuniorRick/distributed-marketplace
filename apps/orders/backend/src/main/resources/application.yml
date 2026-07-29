@@ -1,0 +1,31 @@
+server:
+  port: ${PORT:8083}
+
+spring:
+  application:
+    name: orders
+  datasource:
+    url: ${ORDERS_DB_URL:jdbc:postgresql://localhost:5433/marketplace?currentSchema=orders}
+    username: ${ORDERS_DB_USER:marketplace}
+    password: ${ORDERS_DB_PASSWORD:marketplace}
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    default-schema: orders
+    liquibase-schema: orders
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+cart:
+  base-url: ${CART_BASE_URL:http://localhost:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

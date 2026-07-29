@@ -86,4 +86,26 @@ class CartTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Cart item quantity must be between 1 and 99");
     }
+
+    @Test
+    void checksOutANonEmptyActiveCartIdempotently() {
+        Cart cart = new Cart(UUID.randomUUID());
+        cart.addItem(
+                UUID.randomUUID(), "BOOK-001", "Book", new BigDecimal("10.00"), "USD", 1
+        );
+
+        cart.checkout();
+        cart.checkout();
+
+        assertThat(cart.getStatus()).isEqualTo(com.marketplace.cart.cart.CartStatus.CHECKED_OUT);
+    }
+
+    @Test
+    void rejectsCheckoutForAnEmptyCart() {
+        Cart cart = new Cart(UUID.randomUUID());
+
+        assertThatThrownBy(cart::checkout)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("An empty cart cannot be checked out");
+    }
 }

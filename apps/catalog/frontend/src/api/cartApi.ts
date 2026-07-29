@@ -80,7 +80,13 @@ export async function loadActiveCart(): Promise<Cart | null> {
   if (!response.ok) {
     throw await responseError(response);
   }
-  return response.json();
+
+  const cart: Cart = await response.json();
+  if (cart.status !== 'ACTIVE') {
+    localStorage.removeItem(cartIdStorageKey);
+    return null;
+  }
+  return cart;
 }
 
 export async function addProductToCart(productId: string): Promise<Cart> {
@@ -90,7 +96,7 @@ export async function addProductToCart(productId: string): Promise<Cart> {
   }
 
   let response = await postItem(cartId, productId);
-  if (response.status === 404) {
+  if (response.status === 404 || response.status === 409) {
     localStorage.removeItem(cartIdStorageKey);
     cartId = (await createCart()).id;
     response = await postItem(cartId, productId);

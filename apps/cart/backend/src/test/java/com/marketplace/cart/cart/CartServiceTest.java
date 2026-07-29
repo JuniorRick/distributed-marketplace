@@ -98,4 +98,20 @@ class CartServiceTest {
         assertThat(cartService.removeItem(cartId, itemId).getItems()).isEmpty();
         verify(cartRepository).save(cart);
     }
+
+    @Test
+    void checksOutCart() {
+        UUID cartId = UUID.randomUUID();
+        Cart cart = new Cart(UUID.randomUUID());
+        cart.addItem(
+                UUID.randomUUID(), "BOOK-001", "Book", new BigDecimal("10.00"), "USD", 1
+        );
+        when(cartRepository.findByPublicId(cartId)).thenReturn(Optional.of(cart));
+        when(cartRepository.save(cart)).thenReturn(cart);
+
+        Cart result = cartService.checkout(cartId);
+
+        assertThat(result.getStatus()).isEqualTo(CartStatus.CHECKED_OUT);
+        verify(cartRepository).save(cart);
+    }
 }

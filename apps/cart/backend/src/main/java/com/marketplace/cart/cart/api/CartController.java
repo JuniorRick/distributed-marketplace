@@ -68,4 +68,10 @@ public class CartController {
         var cart = cartService.removeItem(cartId, itemId);
         return ResponseEntity.ok(cartApiMapper.toResponse(cart));
     }
+
+    @PostMapping("/{id}/checkout")
+    public ResponseEntity<CartResponse> checkout(@PathVariable UUID id) {
+        var cart = cartService.checkout(id);
+        return ResponseEntity.ok(cartApiMapper.toResponse(cart));
+    }
 }

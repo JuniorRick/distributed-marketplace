@@ -98,6 +98,19 @@ public class Cart {
                 .allMatch(item -> item.getCurrency().equals(currency));
     }
 
+    public void checkout() {
+        if (status == CartStatus.CHECKED_OUT) {
+            return;
+        }
+        if (status != CartStatus.ACTIVE) {
+            throw new IllegalStateException("Only an active cart can be checked out");
+        }
+        if (items.isEmpty()) {
+            throw new IllegalStateException("An empty cart cannot be checked out");
+        }
+        status = CartStatus.CHECKED_OUT;
+    }
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();

@@ -72,6 +72,17 @@ public class CartService {
         return cartRepository.save(cart);
     }
 
+    @Transactional
+    public Cart checkout(UUID cartId) {
+        Cart cart = findCart(cartId);
+        try {
+            cart.checkout();
+        } catch (IllegalStateException exception) {
+            throw new ConflictException(exception.getMessage());
+        }
+        return cartRepository.save(cart);
+    }
+
     @Transactional(readOnly = true)
     public Cart getByUuid(UUID uuid) {
         return findCart(uuid);
