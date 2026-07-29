@@ -66,4 +66,36 @@ class CartServiceTest {
 
         assertThat(cartService.createOrGetActiveCart(customerId)).isSameAs(existing);
     }
+
+    @Test
+    void updatesItemQuantity() {
+        UUID cartId = UUID.randomUUID();
+        Cart cart = new Cart(UUID.randomUUID());
+        cart.addItem(
+                UUID.randomUUID(), "BOOK-001", "Book", new BigDecimal("10.00"), "USD", 1
+        );
+        UUID itemId = cart.getItems().get(0).getPublicId();
+        when(cartRepository.findByPublicId(cartId)).thenReturn(Optional.of(cart));
+        when(cartRepository.save(cart)).thenReturn(cart);
+
+        Cart result = cartService.updateItemQuantity(cartId, itemId, 5);
+
+        assertThat(result.getItems().get(0).getQuantity()).isEqualTo(5);
+        verify(cartRepository).save(cart);
+    }
+
+    @Test
+    void removesItem() {
+        UUID cartId = UUID.randomUUID();
+        Cart cart = new Cart(UUID.randomUUID());
+        cart.addItem(
+                UUID.randomUUID(), "BOOK-001", "Book", new BigDecimal("10.00"), "USD", 1
+        );
+        UUID itemId = cart.getItems().get(0).getPublicId();
+        when(cartRepository.findByPublicId(cartId)).thenReturn(Optional.of(cart));
+        when(cartRepository.save(cart)).thenReturn(cart);
+
+        assertThat(cartService.removeItem(cartId, itemId).getItems()).isEmpty();
+        verify(cartRepository).save(cart);
+    }
 }

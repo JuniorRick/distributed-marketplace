@@ -41,7 +41,7 @@ cd C:\Users\estinca\IdeaProjects\distributed-marketplace
 # reset already-ran changesets
 docker compose -f infra/docker-compose.yml down -v --remove-orphans
 
-docker compose -f infra/docker-compose.yml up -d catalog-db
+docker compose -f infra/docker-compose.yml up -d marketplace-db
 ```
 
 Start the backend:

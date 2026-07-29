@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchCart } from './api/cartApi';
+import { fetchCart, removeCartItem, updateCartItemQuantity } from './api/cartApi';
 import type { Cart, Money } from './types';
 
 const catalogFrontendUrl = import.meta.env.VITE_CATALOG_FRONTEND_URL ?? 'http://localhost:5173';
@@ -19,6 +19,7 @@ function App() {
   const [cart, setCart] = useState<Cart | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(cartId));
   const [error, setError] = useState<string | null>(null);
+  const [changingItemId, setChangingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!cartId) {
@@ -35,6 +36,40 @@ function App() {
   }, [cartId]);
 
   const itemCount = cart?.items.reduce((total, item) => total + item.quantity, 0) ?? 0;
+
+  async function changeQuantity(itemId: string, quantity: number) {
+    if (!cartId) {
+      return;
+    }
+
+    setChangingItemId(itemId);
+    setError(null);
+    try {
+      setCart(await updateCartItemQuantity(cartId, itemId, quantity));
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : 'Could not change quantity';
+      setError(message);
+    } finally {
+      setChangingItemId(null);
+    }
+  }
+
+  async function removeItem(itemId: string) {
+    if (!cartId) {
+      return;
+    }
+
+    setChangingItemId(itemId);
+    setError(null);
+    try {
+      setCart(await removeCartItem(cartId, itemId));
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : 'Could not remove item';
+      setError(message);
+    } finally {
+      setChangingItemId(null);
+    }
+  }
 
   return (
     <main className="app-shell">
@@ -75,9 +110,34 @@ function App() {
                 <h2>{item.productName}</h2>
                 <span className="cart-item__unit-price">{formatMoney(item.unitPrice)} each</span>
               </div>
-              <div className="cart-item__quantity" aria-label={`Quantity ${item.quantity}`}>
-                <span>Qty</span>
-                <strong>{item.quantity}</strong>
+              <div className="cart-item__actions">
+                <div className="quantity-stepper" aria-label={`Quantity for ${item.productName}`}>
+                  <button
+                    type="button"
+                    onClick={() => changeQuantity(item.id, item.quantity - 1)}
+                    disabled={item.quantity === 1 || changingItemId === item.id}
+                    aria-label={`Decrease ${item.productName} quantity`}
+                  >
+                    -
+                  </button>
+                  <output aria-live="polite">{item.quantity}</output>
+                  <button
+                    type="button"
+                    onClick={() => changeQuantity(item.id, item.quantity + 1)}
+                    disabled={item.quantity === 99 || changingItemId === item.id}
+                    aria-label={`Increase ${item.productName} quantity`}
+                  >
+                    +
+                  </button>
+                </div>
+                <button
+                  className="remove-item-button"
+                  type="button"
+                  onClick={() => removeItem(item.id)}
+                  disabled={changingItemId === item.id}
+                >
+                  Remove
+                </button>
               </div>
               <strong className="cart-item__total">{formatMoney(item.lineTotal)}</strong>
             </article>

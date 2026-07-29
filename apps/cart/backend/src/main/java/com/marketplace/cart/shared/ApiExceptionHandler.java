@@ -32,6 +32,13 @@ class ApiExceptionHandler {
                 .body(ApiError.of(503, "Service Unavailable", exception.getMessage()));
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException exception) {
+        return ResponseEntity
+                .badRequest()
+                .body(ApiError.of(400, "Bad Request", exception.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException exception) {
         Map<String, String> details = new LinkedHashMap<>();

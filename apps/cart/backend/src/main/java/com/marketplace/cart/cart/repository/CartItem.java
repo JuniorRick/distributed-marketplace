@@ -66,6 +66,7 @@ public class CartItem {
             String currency,
             Integer quantity
     ) {
+        this.publicId = UUID.randomUUID();
         this.cart = cart;
         this.productId = productId;
         this.productSku = productSku;
@@ -76,7 +77,14 @@ public class CartItem {
     }
 
     public void increaseQuantity(int amount) {
-        quantity += amount;
+        changeQuantity(quantity + amount);
+    }
+
+    public void changeQuantity(int newQuantity) {
+        if (newQuantity < 1 || newQuantity > 99) {
+            throw new IllegalArgumentException("Cart item quantity must be between 1 and 99");
+        }
+        quantity = newQuantity;
     }
 
     @PrePersist

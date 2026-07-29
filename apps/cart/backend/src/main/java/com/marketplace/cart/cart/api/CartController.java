@@ -5,7 +5,9 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -45,6 +47,25 @@ public class CartController {
             @Valid @RequestBody AddCartItemRequest request
     ) {
         var cart = cartService.addItem(id, request.productId(), request.quantity());
+        return ResponseEntity.ok(cartApiMapper.toResponse(cart));
+    }
+
+    @PatchMapping("/{cartId}/items/{itemId}")
+    public ResponseEntity<CartResponse> updateItemQuantity(
+            @PathVariable UUID cartId,
+            @PathVariable UUID itemId,
+            @Valid @RequestBody UpdateCartItemQuantityRequest request
+    ) {
+        var cart = cartService.updateItemQuantity(cartId, itemId, request.quantity());
+        return ResponseEntity.ok(cartApiMapper.toResponse(cart));
+    }
+
+    @DeleteMapping("/{cartId}/items/{itemId}")
+    public ResponseEntity<CartResponse> removeItem(
+            @PathVariable UUID cartId,
+            @PathVariable UUID itemId
+    ) {
+        var cart = cartService.removeItem(cartId, itemId);
         return ResponseEntity.ok(cartApiMapper.toResponse(cart));
     }
 }

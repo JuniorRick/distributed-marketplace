@@ -29,9 +29,7 @@ public class CartService {
     @Transactional
     public Cart addItem(UUID cartId, UUID productId, int quantity) {
         Cart cart = findCart(cartId);
-        if (cart.getStatus() != CartStatus.ACTIVE) {
-            throw new ConflictException("Items can only be added to an active cart");
-        }
+        requireActive(cart);
 
         var product = catalogClient.getProduct(productId);
         if (!"ACTIVE".equals(product.status())) {
@@ -52,6 +50,28 @@ public class CartService {
         return cartRepository.save(cart);
     }
 
+    @Transactional
+    public Cart updateItemQuantity(UUID cartId, UUID itemId, int quantity) {
+        Cart cart = findCart(cartId);
+        requireActive(cart);
+
+        if (!cart.updateItemQuantity(itemId, quantity)) {
+            throw new NotFoundException("Cart item not found. ID=" + itemId);
+        }
+        return cartRepository.save(cart);
+    }
+
+    @Transactional
+    public Cart removeItem(UUID cartId, UUID itemId) {
+        Cart cart = findCart(cartId);
+        requireActive(cart);
+
+        if (!cart.removeItem(itemId)) {
+            throw new NotFoundException("Cart item not found. ID=" + itemId);
+        }
+        return cartRepository.save(cart);
+    }
+
     @Transactional(readOnly = true)
     public Cart getByUuid(UUID uuid) {
         return findCart(uuid);
@@ -60,5 +80,11 @@ public class CartService {
     private Cart findCart(UUID uuid) {
         return cartRepository.findByPublicId(uuid)
                 .orElseThrow(() -> new NotFoundException("Cart not found. ID=" + uuid));
+    }
+
+    private void requireActive(Cart cart) {
+        if (cart.getStatus() != CartStatus.ACTIVE) {
+            throw new ConflictException("Items can only be changed in an active cart");
+        }
     }
 }

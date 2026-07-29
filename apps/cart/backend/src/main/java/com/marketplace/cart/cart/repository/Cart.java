@@ -78,6 +78,21 @@ public class Cart {
                 );
     }
 
+    public boolean updateItemQuantity(UUID itemId, int quantity) {
+        return items.stream()
+                .filter(item -> item.getPublicId().equals(itemId))
+                .findFirst()
+                .map(item -> {
+                    item.changeQuantity(quantity);
+                    return true;
+                })
+                .orElse(false);
+    }
+
+    public boolean removeItem(UUID itemId) {
+        return items.removeIf(item -> item.getPublicId().equals(itemId));
+    }
+
     public boolean acceptsCurrency(String currency) {
         return items.isEmpty() || items.stream()
                 .allMatch(item -> item.getCurrency().equals(currency));
