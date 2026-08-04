@@ -7,7 +7,6 @@ import java.util.UUID;
 
 public record AddCartItemRequest(
         @NotNull UUID productId,
-        @NotNull
-        @Min(1) @Max(99) Integer quantity
+        @NotNull @Min(1) @Max(99) Integer quantity
 ) {
 }

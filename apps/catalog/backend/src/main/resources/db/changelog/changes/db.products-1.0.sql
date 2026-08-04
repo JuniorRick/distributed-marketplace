@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE INDEX IF NOT EXISTS idx__products__status__name ON products(status, name);
 
 --changeset estinca:002
---comment: seed-products
+--comment: seed products
 INSERT INTO products (id, public_id, sku, name, description, price_amount, currency, status, created_at, updated_at)
 VALUES
     (1, '018f0cf1-38e5-7d1d-9f8d-7fce4fd67a01', 'MARKET-KEYBOARD-01', 'Mechanical Keyboard', 'Compact hot-swappable keyboard for focused work.', 129.00, 'USD', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),

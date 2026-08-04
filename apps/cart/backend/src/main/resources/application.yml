@@ -16,6 +16,23 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:marketplace}
+    password: ${RABBITMQ_PASSWORD:marketplace}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          initial-interval: 1s
+          multiplier: 2
+          max-retries: 5
 
 cart:
   cors:
@@ -23,6 +40,10 @@ cart:
 
 catalog:
   base-url: ${CATALOG_BASE_URL:http://localhost:8081}
+
+marketplace:
+  outbox:
+    fixed-delay: ${OUTBOX_FIXED_DELAY:1s}
 
 management:
   endpoints:

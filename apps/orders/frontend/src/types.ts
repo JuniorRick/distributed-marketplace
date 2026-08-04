@@ -17,7 +17,8 @@ export type Order = {
   id: string;
   sourceCartId: string;
   customerId: string;
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
+  status: 'PENDING' | 'CONFIRMED' | 'REJECTED';
+  failureReason: string | null;
   items: OrderItem[];
   total: Money;
   createdAt: string;

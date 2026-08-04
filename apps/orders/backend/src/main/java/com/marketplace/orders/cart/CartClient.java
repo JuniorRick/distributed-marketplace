@@ -1,6 +1,5 @@
 package com.marketplace.orders.cart;
 
-import com.marketplace.orders.shared.ConflictException;
 import com.marketplace.orders.shared.NotFoundException;
 import com.marketplace.orders.shared.ServiceUnavailableException;
 import java.math.BigDecimal;
@@ -27,10 +26,6 @@ public class CartClient {
         return requestCart(restClient.get().uri("/api/carts/{id}", cartId), cartId);
     }
 
-    public CartSnapshot checkout(UUID cartId) {
-        return requestCart(restClient.post().uri("/api/carts/{id}/checkout", cartId), cartId);
-    }
-
     private CartSnapshot requestCart(RestClient.RequestHeadersSpec<?> request, UUID cartId) {
         try {
             CartSnapshot cart = request.retrieve().body(CartSnapshot.class);
@@ -40,8 +35,6 @@ public class CartClient {
             return cart;
         } catch (HttpClientErrorException.NotFound exception) {
             throw new NotFoundException("Cart %s was not found".formatted(cartId));
-        } catch (HttpClientErrorException.Conflict exception) {
-            throw new ConflictException("Cart %s cannot be checked out".formatted(cartId));
         } catch (RestClientException exception) {
             throw new ServiceUnavailableException("Cart is currently unavailable", exception);
         }

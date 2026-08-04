@@ -18,6 +18,12 @@
   border-color: var(--mp-color-text);
 }
 
+.state-message.processing {
+  border-color: #d6a756;
+  background: #fff8e8;
+  color: #6f4a08;
+}
+
 .order-reference {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

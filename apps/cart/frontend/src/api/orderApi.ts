@@ -1,7 +1,7 @@
 export type Order = {
   id: string;
   sourceCartId: string;
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
+  status: 'PENDING' | 'CONFIRMED' | 'REJECTED';
 };
 
 const ordersApiBaseUrl = import.meta.env.VITE_ORDERS_API_BASE_URL ?? '/orders-api';

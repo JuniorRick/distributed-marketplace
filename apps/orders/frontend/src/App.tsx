@@ -25,13 +25,35 @@ function App() {
       return;
     }
 
-    fetchOrder(orderId)
-      .then((response) => {
+    let cancelled = false;
+    let pollTimer: number | undefined;
+
+    async function loadOrder() {
+      try {
+        const response = await fetchOrder(orderId!);
+        if (cancelled) {
+          return;
+        }
         setOrder(response);
         setError(null);
-      })
-      .catch((requestError: Error) => setError(requestError.message))
-      .finally(() => setIsLoading(false));
+        setIsLoading(false);
+        if (response.status === 'PENDING') {
+          pollTimer = window.setTimeout(loadOrder, 1000);
+        }
+      } catch (requestError) {
+        if (!cancelled) {
+          const message = requestError instanceof Error ? requestError.message : 'Could not load order';
+          setError(message);
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadOrder();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(pollTimer);
+    };
   }, [orderId]);
 
   const itemCount = order?.items.reduce((total, item) => total + item.quantity, 0) ?? 0;
@@ -64,6 +86,14 @@ function App() {
       {isLoading && <p className="state-message">Loading order...</p>}
       {error && <p className="state-message error">{error}</p>}
       {!orderId && <p className="state-message">Create an order from Cart to view it here.</p>}
+      {order?.status === 'PENDING' && (
+        <p className="state-message processing">Checkout is being processed...</p>
+      )}
+      {order?.status === 'REJECTED' && (
+        <p className="state-message error">
+          Checkout failed: {order.failureReason ?? 'Cart rejected the checkout request'}
+        </p>
+      )}
 
       {order && (
         <>

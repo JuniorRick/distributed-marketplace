@@ -13,6 +13,7 @@ public class OrderApiMapper {
                 order.getSourceCartId(),
                 order.getCustomerId(),
                 order.getStatus(),
+                order.getFailureReason(),
                 order.getItems().stream().map(this::toResponse).toList(),
                 new MoneyResponse(order.getTotalAmount(), order.getCurrency()),
                 order.getCreatedAt()

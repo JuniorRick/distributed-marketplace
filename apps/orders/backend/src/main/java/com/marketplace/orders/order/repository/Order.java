@@ -47,6 +47,9 @@ public class Order {
     @Column(nullable = false, length = 3)
     private String currency;
 
+    @Column(name = "failure_reason", length = 500)
+    private String failureReason;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
@@ -100,6 +103,17 @@ public class Order {
         status = OrderStatus.CONFIRMED;
     }
 
+    public void reject(String reason) {
+        if (status == OrderStatus.REJECTED) {
+            return;
+        }
+        if (status != OrderStatus.PENDING) {
+            throw new IllegalStateException("Only a pending order can be rejected");
+        }
+        status = OrderStatus.REJECTED;
+        failureReason = reason;
+    }
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();
@@ -141,6 +155,10 @@ public class Order {
 
     public String getCurrency() {
         return currency;
+    }
+
+    public String getFailureReason() {
+        return failureReason;
     }
 
     public List<OrderItem> getItems() {

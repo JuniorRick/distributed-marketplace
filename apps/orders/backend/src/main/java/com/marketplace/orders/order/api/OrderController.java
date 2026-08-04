@@ -3,7 +3,6 @@ package com.marketplace.orders.order.api;
 import com.marketplace.orders.order.OrderPersistenceService;
 import com.marketplace.orders.order.OrderWorkflowService;
 import jakarta.validation.Valid;
-import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,11 +34,12 @@ public class OrderController {
     public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {
         var result = orderWorkflowService.createFromCart(request.cartId());
         var response = orderApiMapper.toResponse(result.order());
-        if (!result.created()) {
+        if (response.status() != com.marketplace.orders.order.OrderStatus.PENDING) {
             return ResponseEntity.ok(response);
         }
         return ResponseEntity
-                .created(URI.create("/api/orders/" + response.id()))
+                .accepted()
+                .location(java.net.URI.create("/api/orders/" + response.id()))
                 .body(response);
     }
 

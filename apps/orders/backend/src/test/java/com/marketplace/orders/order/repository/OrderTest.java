@@ -27,4 +27,19 @@ class OrderTest {
             assertThat(item.getLineTotalAmount()).isEqualByComparingTo("59.80");
         });
     }
+
+    @Test
+    void rejectsPendingOrderWithReason() {
+        Order order = new Order(UUID.randomUUID(), UUID.randomUUID(), "USD");
+        order.addItem(
+                UUID.randomUUID(), "BOOK-001", "Distributed Systems",
+                new BigDecimal("29.90"), "USD", 1
+        );
+
+        order.reject("Cart is no longer active");
+        order.reject("Ignored duplicate");
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(order.getFailureReason()).isEqualTo("Cart is no longer active");
+    }
 }

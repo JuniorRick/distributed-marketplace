@@ -30,61 +30,36 @@ class OrderWorkflowServiceTest {
     private OrderWorkflowService orderWorkflowService;
 
     @Test
-    void createsPendingOrderBeforeCheckoutAndConfirmsIt() {
+    void createsPendingOrderAndRequestsAsynchronousCheckout() {
         UUID cartId = UUID.randomUUID();
-        UUID customerId = UUID.randomUUID();
-        var cart = activeCart(cartId, customerId);
-        Order pending = pendingOrder(cartId, customerId);
-        Order confirmed = pendingOrder(cartId, customerId);
-        confirmed.confirm();
+        var cart = activeCart(cartId, UUID.randomUUID());
+        Order pending = pendingOrder(cartId, cart.customerId());
 
         when(orderPersistenceService.findBySourceCartId(cartId)).thenReturn(Optional.empty());
         when(cartClient.getCart(cartId)).thenReturn(cart);
-        when(orderPersistenceService.createPending(cart)).thenReturn(pending);
-        when(cartClient.checkout(cartId)).thenReturn(checkedOutCart(cart));
-        when(orderPersistenceService.confirm(pending.getPublicId())).thenReturn(confirmed);
+        when(orderPersistenceService.createPendingAndRequestCheckout(cart)).thenReturn(pending);
 
         var result = orderWorkflowService.createFromCart(cartId);
 
         assertThat(result.created()).isTrue();
-        assertThat(result.order().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
-        verify(orderPersistenceService).createPending(cart);
-        verify(cartClient).checkout(cartId);
+        assertThat(result.order().getStatus()).isEqualTo(OrderStatus.PENDING);
+        verify(orderPersistenceService).createPendingAndRequestCheckout(cart);
     }
 
     @Test
-    void retryResumesExistingPendingOrderWithoutRebuildingSnapshot() {
+    void retryReturnsExistingPendingOrderWithoutPublishingAnotherRequest() {
         UUID cartId = UUID.randomUUID();
-        UUID customerId = UUID.randomUUID();
-        var cart = activeCart(cartId, customerId);
-        Order pending = pendingOrder(cartId, customerId);
-        Order confirmed = pendingOrder(cartId, customerId);
-        confirmed.confirm();
-
+        Order pending = pendingOrder(cartId, UUID.randomUUID());
         when(orderPersistenceService.findBySourceCartId(cartId)).thenReturn(Optional.of(pending));
-        when(cartClient.checkout(cartId)).thenReturn(checkedOutCart(cart));
-        when(orderPersistenceService.confirm(pending.getPublicId())).thenReturn(confirmed);
 
         var result = orderWorkflowService.createFromCart(cartId);
 
         assertThat(result.created()).isFalse();
-        assertThat(result.order().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        assertThat(result.order()).isSameAs(pending);
         verify(cartClient, never()).getCart(cartId);
-        verify(orderPersistenceService, never()).createPending(cart);
-    }
-
-    @Test
-    void retryReturnsExistingConfirmedOrderWithoutCallingCart() {
-        UUID cartId = UUID.randomUUID();
-        Order confirmed = pendingOrder(cartId, UUID.randomUUID());
-        confirmed.confirm();
-        when(orderPersistenceService.findBySourceCartId(cartId)).thenReturn(Optional.of(confirmed));
-
-        var result = orderWorkflowService.createFromCart(cartId);
-
-        assertThat(result.created()).isFalse();
-        assertThat(result.order()).isSameAs(confirmed);
-        verify(cartClient, never()).checkout(cartId);
+        verify(orderPersistenceService, never()).createPendingAndRequestCheckout(
+                org.mockito.ArgumentMatchers.any()
+        );
     }
 
     private static Order pendingOrder(UUID cartId, UUID customerId) {
@@ -100,14 +75,6 @@ class OrderWorkflowServiceTest {
         var item = new CartClient.CartItemSnapshot(
                 UUID.randomUUID(), UUID.randomUUID(), "BOOK-001", "Book", money, 1, money
         );
-        return new CartClient.CartSnapshot(
-                cartId, customerId, "ACTIVE", List.of(item), money
-        );
-    }
-
-    private static CartClient.CartSnapshot checkedOutCart(CartClient.CartSnapshot cart) {
-        return new CartClient.CartSnapshot(
-                cart.id(), cart.customerId(), "CHECKED_OUT", cart.items(), cart.subtotal()
-        );
+        return new CartClient.CartSnapshot(cartId, customerId, "ACTIVE", List.of(item), money);
     }
 }

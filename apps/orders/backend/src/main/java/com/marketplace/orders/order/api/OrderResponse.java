@@ -10,6 +10,7 @@ public record OrderResponse(
         UUID sourceCartId,
         UUID customerId,
         OrderStatus status,
+        String failureReason,
         List<OrderItemResponse> items,
         MoneyResponse total,
         Instant createdAt

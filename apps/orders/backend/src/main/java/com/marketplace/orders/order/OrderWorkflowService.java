@@ -24,7 +24,7 @@ public class OrderWorkflowService {
     public OrderCreationResult createFromCart(UUID cartId) {
         var existing = orderPersistenceService.findBySourceCartId(cartId);
         if (existing.isPresent()) {
-            return complete(existing.get(), false);
+            return new OrderCreationResult(existing.get(), false);
         }
 
         var cart = cartClient.getCart(cartId);
@@ -35,36 +35,14 @@ public class OrderWorkflowService {
             throw new ConflictException("An empty cart cannot create an order");
         }
 
-        Order pending;
-        boolean created;
         try {
-            pending = orderPersistenceService.createPending(cart);
-            created = true;
+            Order pending = orderPersistenceService.createPendingAndRequestCheckout(cart);
+            return new OrderCreationResult(pending, true);
         } catch (DataIntegrityViolationException exception) {
-            pending = orderPersistenceService.findBySourceCartId(cartId)
+            Order concurrent = orderPersistenceService.findBySourceCartId(cartId)
                     .orElseThrow(() -> exception);
-            created = false;
+            return new OrderCreationResult(concurrent, false);
         }
-        return complete(pending, created);
-    }
-
-    private OrderCreationResult complete(Order order, boolean created) {
-        if (order.getStatus() == OrderStatus.CONFIRMED) {
-            return new OrderCreationResult(order, created);
-        }
-        if (order.getStatus() != OrderStatus.PENDING) {
-            throw new ConflictException("Cancelled orders cannot be resumed");
-        }
-
-        var checkedOutCart = cartClient.checkout(order.getSourceCartId());
-        if (!"CHECKED_OUT".equals(checkedOutCart.status())) {
-            throw new ConflictException("Cart checkout did not complete");
-        }
-
-        return new OrderCreationResult(
-                orderPersistenceService.confirm(order.getPublicId()),
-                created
-        );
     }
 
     public record OrderCreationResult(Order order, boolean created) {

@@ -74,16 +74,19 @@ Default URLs:
 - Orders API: `http://localhost:8083/api/orders`
 - Orders UI: `http://localhost:5175`
 
-## Synchronous Checkout
+## Event-Driven Checkout
 
-Orders coordinates checkout without sharing database tables:
+Orders reads Cart once to create an immutable snapshot. The state-changing workflow then runs asynchronously through RabbitMQ:
 
-1. Read the active Cart snapshot.
-2. Commit an immutable `PENDING` Order in the `orders` schema.
-3. Call Cart's idempotent checkout endpoint.
-4. Commit the Order transition to `CONFIRMED`.
+1. Orders commits a `PENDING` Order and `CheckoutCartCommand.v1` outbox record in one transaction.
+2. The Orders outbox publisher sends the request to RabbitMQ.
+3. Cart consumes the request idempotently, checks out its Cart, and commits a result outbox record.
+4. Cart publishes either `CartCheckedOutEvent.v1` or `CartCheckoutRejectedEvent.v1`.
+5. Orders consumes the result idempotently and transitions to `CONFIRMED` or `REJECTED`.
 
-`orders.source_cart_id` is unique, so retrying order creation for the same Cart returns the existing Order. If the Cart call fails after the pending Order is committed, the next retry resumes that Order instead of rebuilding its snapshot.
+Outbox delivery is at-least-once. Consumer inbox tables make duplicate events harmless, and failed listener deliveries are routed to dead-letter queues. `orders.source_cart_id` also remains unique, so duplicate HTTP order requests return the existing Order.
+
+RabbitMQ management is available at `http://localhost:15672` using `marketplace` for both username and password.
 
 ## First Practice Goals
 
