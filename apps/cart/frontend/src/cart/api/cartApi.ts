@@ -1,4 +1,4 @@
-import type { Cart } from '../types';
+import type { Cart } from '../model/Cart';
 
 const apiBaseUrl = import.meta.env.VITE_CART_API_BASE_URL ?? '';
 

@@ -1,25 +1,4 @@
-export type Money = {
-  amount: number;
-  currency: string;
-};
-
-export type CartItem = {
-  id: string;
-  productId: string;
-  productSku: string;
-  productName: string;
-  unitPrice: Money;
-  quantity: number;
-  lineTotal: Money;
-};
-
-export type Cart = {
-  id: string;
-  customerId: string;
-  status: 'ACTIVE' | 'CHECKED_OUT' | 'ABANDONED';
-  items: CartItem[];
-  subtotal: Money;
-};
+import type { Cart } from '../model/Cart';
 
 const cartApiBaseUrl = import.meta.env.VITE_CART_API_BASE_URL ?? '/cart-api';
 const cartFrontendUrl = import.meta.env.VITE_CART_FRONTEND_URL ?? 'http://localhost:5174';
@@ -114,8 +93,4 @@ export function cartPageUrl(cartId?: string) {
     url.searchParams.set('cartId', cartId);
   }
   return url.toString();
-}
-
-export function cartItemCount(cart: Cart | null) {
-  return cart?.items.reduce((total, item) => total + item.quantity, 0) ?? 0;
 }
