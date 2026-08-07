@@ -1,8 +1,4 @@
-export type Order = {
-  id: string;
-  sourceCartId: string;
-  status: 'PENDING' | 'CONFIRMED' | 'REJECTED';
-};
+import type { Order } from '../model/Order';
 
 const ordersApiBaseUrl = import.meta.env.VITE_ORDERS_API_BASE_URL ?? '/orders-api';
 const ordersFrontendUrl = import.meta.env.VITE_ORDERS_FRONTEND_URL ?? 'http://localhost:5175';

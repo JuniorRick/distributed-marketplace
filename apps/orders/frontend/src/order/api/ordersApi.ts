@@ -1,4 +1,4 @@
-import type { Order } from '../types';
+import type { Order } from '../model/Order';
 
 const apiBaseUrl = import.meta.env.VITE_ORDERS_API_BASE_URL ?? '';
 

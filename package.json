@@ -7,9 +7,16 @@
     "packages/*"
   ],
   "scripts": {
+    "test:frontends": "npm run test --workspaces --if-present",
     "build:catalog-ui": "npm --prefix apps/catalog/frontend run build",
     "build:cart-ui": "npm --prefix apps/cart/frontend run build",
     "build:orders-ui": "npm --prefix apps/orders/frontend run build",
     "build:frontends": "npm run build:catalog-ui && npm run build:cart-ui && npm run build:orders-ui"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "jsdom": "^30.0.1",
+    "vitest": "^4.1.10"
   }
 }

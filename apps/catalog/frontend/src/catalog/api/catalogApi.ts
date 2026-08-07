@@ -1,4 +1,4 @@
-import type { Product } from '../types';
+import type { Product } from '../model/Product';
 
 const apiBaseUrl = import.meta.env.VITE_CATALOG_API_BASE_URL ?? '';
 
