@@ -4,6 +4,9 @@ import com.marketplace.orders.cart.CartClient.CartSnapshot;
 import com.marketplace.orders.checkout.CheckoutMessagingConfiguration;
 import com.marketplace.orders.checkout.CheckoutCartCommand;
 import com.marketplace.orders.checkout.CheckoutResultListener.CheckoutResult;
+import com.marketplace.orders.inventory.InventoryMessagingConfiguration;
+import com.marketplace.orders.inventory.InventoryResultListener.InventoryReservationResult;
+import com.marketplace.orders.inventory.ReserveInventoryCommand;
 import com.marketplace.orders.messaging.OutboxService;
 import com.marketplace.orders.order.repository.Order;
 import com.marketplace.orders.order.repository.OrderRepository;
@@ -71,6 +74,7 @@ public class OrderPersistenceService {
         outboxService.enqueue(
                 event.eventId(),
                 "CheckoutCartCommand.v1",
+                CheckoutMessagingConfiguration.EXCHANGE,
                 CheckoutMessagingConfiguration.CHECKOUT_CART_COMMAND_ROUTING_KEY,
                 event
         );
@@ -93,13 +97,58 @@ public class OrderPersistenceService {
         }
 
         if ("COMPLETED".equals(event.outcome())) {
-            order.confirm();
+            requestInventory(order);
         } else if ("REJECTED".equals(event.outcome())) {
             order.reject(event.reason());
         } else {
             throw new IllegalArgumentException("Unknown checkout outcome: " + event.outcome());
         }
         orderRepository.save(order);
+    }
+
+    @Transactional
+    public void applyInventoryResult(InventoryReservationResult event) {
+        String eventType = "RESERVED".equals(event.outcome())
+                ? "InventoryReservedEvent.v1"
+                : "InventoryReservationRejectedEvent.v1";
+        if (!claim(event.eventId(), eventType)) {
+            return;
+        }
+
+        Order order = orderRepository.findByPublicId(event.orderId())
+                .orElseThrow(() -> new NotFoundException("Order not found. ID=" + event.orderId()));
+        if ("RESERVED".equals(event.outcome())) {
+            order.confirm();
+        } else if ("REJECTED".equals(event.outcome())) {
+            order.reject(event.reason());
+        } else {
+            throw new IllegalArgumentException("Unknown inventory outcome: " + event.outcome());
+        }
+        orderRepository.save(order);
+    }
+
+    private void requestInventory(Order order) {
+        if (order.getStatus() != OrderStatus.PENDING) {
+            return;
+        }
+        ReserveInventoryCommand command = new ReserveInventoryCommand(
+                UUID.randomUUID(),
+                order.getPublicId(),
+                order.getItems().stream()
+                        .map(item -> new ReserveInventoryCommand.Item(
+                                item.getProductId(),
+                                item.getQuantity()
+                        ))
+                        .toList(),
+                Instant.now()
+        );
+        outboxService.enqueue(
+                command.eventId(),
+                "ReserveInventoryCommand.v1",
+                InventoryMessagingConfiguration.EXCHANGE,
+                InventoryMessagingConfiguration.RESERVE_INVENTORY_COMMAND_ROUTING_KEY,
+                command
+        );
     }
 
     private boolean claim(UUID eventId, String eventType) {
