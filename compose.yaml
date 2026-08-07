@@ -101,6 +101,28 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  inventory-backend:
+    image: distributed-marketplace-inventory-backend
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      args:
+        SERVICE: inventory
+    environment:
+      INVENTORY_DB_URL: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=inventory
+      INVENTORY_DB_USER: marketplace
+      INVENTORY_DB_PASSWORD: marketplace
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: marketplace
+      RABBITMQ_PASSWORD: marketplace
+    ports:
+      - "${INVENTORY_API_PORT:-8084}:8084"
+    depends_on:
+      marketplace-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
   catalog-frontend:
     image: distributed-marketplace-catalog-frontend
     build:

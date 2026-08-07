@@ -7,10 +7,10 @@ Current systems:
 - `apps/catalog`: product catalog SCS
 - `apps/cart`: active cart and product snapshot SCS
 - `apps/orders`: synchronous checkout and immutable order snapshot SCS
+- `apps/inventory`: stock balances and order reservation SCS
 
 Suggested future systems:
 
-- `apps/inventory`
 - `apps/payments`
 - `apps/notifications`
 
@@ -39,7 +39,7 @@ Start the complete marketplace from the repository root:
 docker compose up --build
 ```
 
-Compose builds and starts PostgreSQL, the three Spring Boot backends, and the three Nginx-served React frontends. The containers communicate through the internal Compose network, so no Java, Maven, Node.js, or npm installation is required on the host.
+Compose builds and starts PostgreSQL, the four Spring Boot backends, and the three Nginx-served React frontends. The containers communicate through the internal Compose network, so no Java, Maven, Node.js, or npm installation is required on the host.
 
 Stop the stack while preserving PostgreSQL data:
 
@@ -73,6 +73,7 @@ Default URLs:
 - Cart UI: `http://localhost:5174`
 - Orders API: `http://localhost:8083/api/orders`
 - Orders UI: `http://localhost:5175`
+- Inventory health: `http://localhost:8084/actuator/health`
 
 ## Event-Driven Checkout
 

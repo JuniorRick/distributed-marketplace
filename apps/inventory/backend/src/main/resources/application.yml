@@ -1,0 +1,41 @@
+server:
+  port: ${PORT:8084}
+
+spring:
+  application:
+    name: inventory
+  datasource:
+    url: ${INVENTORY_DB_URL:jdbc:postgresql://localhost:5433/marketplace?currentSchema=inventory}
+    username: ${INVENTORY_DB_USER:marketplace}
+    password: ${INVENTORY_DB_PASSWORD:marketplace}
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    default-schema: inventory
+    liquibase-schema: inventory
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:marketplace}
+    password: ${RABBITMQ_PASSWORD:marketplace}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+
+marketplace:
+  outbox:
+    fixed-delay: ${OUTBOX_FIXED_DELAY:1s}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
