@@ -12,4 +12,6 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
 
     @EntityGraph(attributePaths = "items")
     Optional<InventoryReservation> findByOrderId(UUID orderId);
+
+    boolean existsByOrderId(UUID orderId);
 }

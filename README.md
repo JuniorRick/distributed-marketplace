@@ -6,7 +6,7 @@ Current systems:
 
 - `apps/catalog`: product catalog SCS
 - `apps/cart`: active cart and product snapshot SCS
-- `apps/orders`: synchronous checkout and immutable order snapshot SCS
+- `apps/orders`: checkout orchestration and immutable order snapshot SCS
 - `apps/inventory`: stock balances and order reservation SCS
 
 Suggested future systems:
@@ -74,6 +74,7 @@ Default URLs:
 - Orders API: `http://localhost:8083/api/orders`
 - Orders UI: `http://localhost:5175`
 - Inventory health: `http://localhost:8084/actuator/health`
+- Inventory replenishment: `POST http://localhost:8084/api/inventory/{productId}/replenishments`
 
 ## Event-Driven Checkout
 
@@ -83,7 +84,18 @@ Orders reads Cart once to create an immutable snapshot. The state-changing workf
 2. The Orders outbox publisher sends the request to RabbitMQ.
 3. Cart consumes the request idempotently, checks out its Cart, and commits a result outbox record.
 4. Cart publishes either `CartCheckedOutEvent.v1` or `CartCheckoutRejectedEvent.v1`.
-5. Orders consumes the result idempotently and transitions to `CONFIRMED` or `REJECTED`.
+5. When Cart succeeds, Orders commits a `ReserveInventoryCommand.v1` outbox record containing the immutable order lines.
+6. Inventory consumes the command idempotently and reserves every requested item in one transaction.
+7. Inventory publishes either `InventoryReservedEvent.v1` or `InventoryReservationRejectedEvent.v1` through its outbox.
+8. Orders consumes the Inventory result and transitions to `CONFIRMED` or `REJECTED`.
+
+Add stock before exercising checkout:
+
+```shell
+curl -X POST http://localhost:8084/api/inventory/PRODUCT_UUID/replenishments \
+  -H "Content-Type: application/json" \
+  -d '{"quantity":20}'
+```
 
 Outbox delivery is at-least-once. Consumer inbox tables make duplicate events harmless, and failed listener deliveries are routed to dead-letter queues. `orders.source_cart_id` also remains unique, so duplicate HTTP order requests return the existing Order.
 

@@ -25,6 +25,14 @@ spring:
     publisher-returns: true
     template:
       mandatory: true
+    listener:
+      simple:
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          initial-interval: 1s
+          multiplier: 2
+          max-retries: 5
 
 marketplace:
   outbox:
