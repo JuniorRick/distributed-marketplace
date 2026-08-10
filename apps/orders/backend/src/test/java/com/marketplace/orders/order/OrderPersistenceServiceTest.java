@@ -11,6 +11,8 @@ import static org.mockito.Mockito.when;
 import com.marketplace.orders.checkout.CheckoutResultListener.CheckoutResult;
 import com.marketplace.orders.inventory.InventoryMessagingConfiguration;
 import com.marketplace.orders.inventory.InventoryResultListener.InventoryReservationResult;
+import com.marketplace.orders.inventory.CommitInventoryCommand;
+import com.marketplace.orders.inventory.ReleaseInventoryCommand;
 import com.marketplace.orders.inventory.ReserveInventoryCommand;
 import com.marketplace.orders.messaging.OutboxService;
 import com.marketplace.orders.order.repository.Order;
@@ -97,7 +99,7 @@ class OrderPersistenceServiceTest {
                 Instant.now()
         ));
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAYMENT_PENDING);
         ArgumentCaptor<CapturePaymentCommand> command = ArgumentCaptor.forClass(
                 CapturePaymentCommand.class
         );
@@ -114,8 +116,9 @@ class OrderPersistenceServiceTest {
     }
 
     @Test
-    void capturedPaymentConfirmsPendingOrder() {
+    void capturedPaymentRequestsInventoryCommit() {
         Order order = pendingOrder();
+        order.markPaymentPending();
         UUID eventId = UUID.randomUUID();
         when(jdbcTemplate.update(anyString(), eq(eventId), eq("PaymentCapturedEvent.v1")))
                 .thenReturn(1);
@@ -123,19 +126,54 @@ class OrderPersistenceServiceTest {
 
         service.applyPaymentResult(paymentResult(eventId, order, "CAPTURED", null));
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
-        verify(orderRepository).save(order);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.INVENTORY_COMMIT_PENDING);
+        verify(outboxService).enqueue(
+                any(UUID.class),
+                eq("CommitInventoryCommand.v1"),
+                eq(InventoryMessagingConfiguration.EXCHANGE),
+                eq(InventoryMessagingConfiguration.COMMIT_INVENTORY_COMMAND_ROUTING_KEY),
+                any(CommitInventoryCommand.class)
+        );
     }
 
     @Test
-    void failedPaymentRejectsPendingOrder() {
+    void failedPaymentRequestsInventoryRelease() {
         Order order = pendingOrder();
+        order.markPaymentPending();
         UUID eventId = UUID.randomUUID();
         when(jdbcTemplate.update(anyString(), eq(eventId), eq("PaymentFailedEvent.v1")))
                 .thenReturn(1);
         when(orderRepository.findByPublicId(order.getPublicId())).thenReturn(Optional.of(order));
 
         service.applyPaymentResult(paymentResult(eventId, order, "FAILED", "declined"));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.INVENTORY_RELEASE_PENDING);
+        assertThat(order.getFailureReason()).isEqualTo("declined");
+        verify(outboxService).enqueue(
+                any(UUID.class),
+                eq("ReleaseInventoryCommand.v1"),
+                eq(InventoryMessagingConfiguration.EXCHANGE),
+                eq(InventoryMessagingConfiguration.RELEASE_INVENTORY_COMMAND_ROUTING_KEY),
+                any(ReleaseInventoryCommand.class)
+        );
+    }
+
+    @Test
+    void committedInventoryConfirmsOrder() {
+        Order order = pendingOrder();
+        order.markPaymentPending();
+        order.markInventoryCommitPending();
+        applyInventoryResult(order, "COMMITTED", null);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+    }
+
+    @Test
+    void releasedInventoryRejectsOrderWithPaymentFailureReason() {
+        Order order = pendingOrder();
+        order.markPaymentPending();
+        order.markInventoryReleasePending("declined");
+        applyInventoryResult(order, "RELEASED", null);
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.REJECTED);
         assertThat(order.getFailureReason()).isEqualTo("declined");
@@ -144,6 +182,7 @@ class OrderPersistenceServiceTest {
     @Test
     void rejectsPaymentResultWithDifferentAmount() {
         Order order = pendingOrder();
+        order.markPaymentPending();
         UUID eventId = UUID.randomUUID();
         when(jdbcTemplate.update(anyString(), eq(eventId), eq("PaymentCapturedEvent.v1")))
                 .thenReturn(1);
@@ -161,7 +200,19 @@ class OrderPersistenceServiceTest {
 
         assertThatThrownBy(() -> service.applyPaymentResult(result))
                 .isInstanceOf(ConflictException.class);
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAYMENT_PENDING);
+    }
+
+    private void applyInventoryResult(Order order, String outcome, String reason) {
+        UUID eventId = UUID.randomUUID();
+        String eventType = "COMMITTED".equals(outcome)
+                ? "InventoryCommittedEvent.v1"
+                : "InventoryReleasedEvent.v1";
+        when(jdbcTemplate.update(anyString(), eq(eventId), eq(eventType))).thenReturn(1);
+        when(orderRepository.findByPublicId(order.getPublicId())).thenReturn(Optional.of(order));
+        service.applyInventoryResult(new InventoryReservationResult(
+                eventId, order.getPublicId(), UUID.randomUUID(), outcome, reason, Instant.now()
+        ));
     }
 
     private static PaymentResult paymentResult(

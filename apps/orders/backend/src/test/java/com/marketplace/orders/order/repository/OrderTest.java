@@ -17,6 +17,8 @@ class OrderTest {
                 new BigDecimal("29.90"), "USD", 2
         );
 
+        order.markPaymentPending();
+        order.markInventoryCommitPending();
         order.confirm();
         order.confirm();
 
@@ -41,5 +43,17 @@ class OrderTest {
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.REJECTED);
         assertThat(order.getFailureReason()).isEqualTo("Cart is no longer active");
+    }
+
+    @Test
+    void rejectsOnlyAfterReservedInventoryIsReleased() {
+        Order order = new Order(UUID.randomUUID(), UUID.randomUUID(), "USD");
+        order.markPaymentPending();
+        order.markInventoryReleasePending("Payment declined");
+
+        order.rejectAfterInventoryRelease();
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(order.getFailureReason()).isEqualTo("Payment declined");
     }
 }
