@@ -16,7 +16,6 @@ services:
       retries: 10
     volumes:
       - marketplace-db-data:/var/lib/postgresql/data
-      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
 
   marketplace-db-init:
     image: postgres:17-alpine
@@ -33,7 +32,7 @@ services:
       - -v
       - ON_ERROR_STOP=1
       - -c
-      - CREATE SCHEMA IF NOT EXISTS catalog; CREATE SCHEMA IF NOT EXISTS cart; CREATE SCHEMA IF NOT EXISTS orders; CREATE SCHEMA IF NOT EXISTS inventory;
+      - CREATE SCHEMA IF NOT EXISTS catalog; CREATE SCHEMA IF NOT EXISTS cart; CREATE SCHEMA IF NOT EXISTS orders; CREATE SCHEMA IF NOT EXISTS inventory; CREATE SCHEMA IF NOT EXISTS payments;
     depends_on:
       marketplace-db:
         condition: service_healthy
@@ -143,6 +142,31 @@ services:
       RABBITMQ_PASSWORD: marketplace
     ports:
       - "${INVENTORY_API_PORT:-8084}:8084"
+    depends_on:
+      marketplace-db:
+        condition: service_healthy
+      marketplace-db-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+
+  payments-backend:
+    image: distributed-marketplace-payments-backend
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      args:
+        SERVICE: payments
+    environment:
+      PAYMENTS_DB_URL: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=payments
+      PAYMENTS_DB_USER: marketplace
+      PAYMENTS_DB_PASSWORD: marketplace
+      PAYMENT_SIMULATOR_OUTCOME: ${PAYMENT_SIMULATOR_OUTCOME:-CAPTURED}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: marketplace
+      RABBITMQ_PASSWORD: marketplace
+    ports:
+      - "${PAYMENTS_API_PORT:-8085}:8085"
     depends_on:
       marketplace-db:
         condition: service_healthy

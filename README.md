@@ -8,10 +8,10 @@ Current systems:
 - `apps/cart`: active cart and product snapshot SCS
 - `apps/orders`: checkout orchestration and immutable order snapshot SCS
 - `apps/inventory`: stock balances and order reservation SCS
+- `apps/payments`: payment capture and payment history SCS
 
 Suggested future systems:
 
-- `apps/payments`
 - `apps/notifications`
 
 ## Catalog System
@@ -39,7 +39,7 @@ Start the complete marketplace from the repository root:
 docker compose up --build
 ```
 
-Compose builds and starts PostgreSQL, the four Spring Boot backends, and the three Nginx-served React frontends. The containers communicate through the internal Compose network, so no Java, Maven, Node.js, or npm installation is required on the host.
+Compose builds and starts PostgreSQL, the five Spring Boot backends, and the three Nginx-served React frontends. The containers communicate through the internal Compose network, so no Java, Maven, Node.js, or npm installation is required on the host.
 
 Stop the stack while preserving PostgreSQL data:
 
@@ -75,6 +75,8 @@ Default URLs:
 - Orders UI: `http://localhost:5175`
 - Inventory health: `http://localhost:8084/actuator/health`
 - Inventory replenishment: `POST http://localhost:8084/api/inventory/{productId}/replenishments`
+- Payments health: `http://localhost:8085/actuator/health`
+- Payment by order: `http://localhost:8085/api/payments/by-order/{orderId}`
 
 ## Event-Driven Checkout
 
@@ -87,7 +89,13 @@ Orders reads Cart once to create an immutable snapshot. The state-changing workf
 5. When Cart succeeds, Orders commits a `ReserveInventoryCommand.v1` outbox record containing the immutable order lines.
 6. Inventory consumes the command idempotently and reserves every requested item in one transaction.
 7. Inventory publishes either `InventoryReservedEvent.v1` or `InventoryReservationRejectedEvent.v1` through its outbox.
-8. Orders consumes the Inventory result and transitions to `CONFIRMED` or `REJECTED`.
+8. When Inventory succeeds, Orders commits a `CapturePaymentCommand.v1` outbox record with the immutable order total.
+9. Payments consumes the command idempotently and invokes its gateway adapter.
+10. Payments records a `CAPTURED` or `FAILED` payment and the matching result event in one transaction.
+11. Orders consumes the Payment result and transitions to `CONFIRMED` or `REJECTED`.
+
+The local gateway simulator captures payments by default. Start the stack with
+`PAYMENT_SIMULATOR_OUTCOME=FAILED` to exercise payment rejection.
 
 Add stock before exercising checkout:
 

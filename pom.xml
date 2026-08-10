@@ -21,5 +21,6 @@
         <module>apps/cart/backend</module>
         <module>apps/orders/backend</module>
         <module>apps/inventory/backend</module>
+        <module>apps/payments/backend</module>
     </modules>
 </project>
