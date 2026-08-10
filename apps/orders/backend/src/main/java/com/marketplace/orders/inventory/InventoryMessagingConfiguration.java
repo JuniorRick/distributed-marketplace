@@ -16,8 +16,12 @@ public class InventoryMessagingConfiguration {
     public static final String RESULT_QUEUE = "orders.inventory-results.v1";
     public static final String RESULT_DEAD_LETTER_QUEUE = "orders.inventory-results.dlq.v1";
     public static final String RESERVE_INVENTORY_COMMAND_ROUTING_KEY = "inventory.command.reserve.v1";
+    public static final String COMMIT_INVENTORY_COMMAND_ROUTING_KEY = "inventory.command.commit.v1";
+    public static final String RELEASE_INVENTORY_COMMAND_ROUTING_KEY = "inventory.command.release.v1";
     public static final String INVENTORY_RESERVED_EVENT_ROUTING_KEY = "inventory.event.reserved.v1";
     public static final String INVENTORY_RESERVATION_REJECTED_EVENT_ROUTING_KEY = "inventory.event.reservation-rejected.v1";
+    public static final String INVENTORY_COMMITTED_EVENT_ROUTING_KEY = "inventory.event.committed.v1";
+    public static final String INVENTORY_RELEASED_EVENT_ROUTING_KEY = "inventory.event.released.v1";
 
     @Bean
     DirectExchange inventoryExchange() {
@@ -56,6 +60,20 @@ public class InventoryMessagingConfiguration {
     }
 
     @Bean
+    Binding inventoryCommittedBinding() {
+        return BindingBuilder.bind(inventoryResultQueue())
+                .to(inventoryExchange())
+                .with(INVENTORY_COMMITTED_EVENT_ROUTING_KEY);
+    }
+
+    @Bean
+    Binding inventoryReleasedBinding() {
+        return BindingBuilder.bind(inventoryResultQueue())
+                .to(inventoryExchange())
+                .with(INVENTORY_RELEASED_EVENT_ROUTING_KEY);
+    }
+
+    @Bean
     Binding inventoryResultDeadLetterReservedBinding() {
         return BindingBuilder.bind(inventoryResultDeadLetterQueue())
                 .to(inventoryDeadLetterExchange())
@@ -67,5 +85,19 @@ public class InventoryMessagingConfiguration {
         return BindingBuilder.bind(inventoryResultDeadLetterQueue())
                 .to(inventoryDeadLetterExchange())
                 .with(INVENTORY_RESERVATION_REJECTED_EVENT_ROUTING_KEY);
+    }
+
+    @Bean
+    Binding inventoryResultDeadLetterCommittedBinding() {
+        return BindingBuilder.bind(inventoryResultDeadLetterQueue())
+                .to(inventoryDeadLetterExchange())
+                .with(INVENTORY_COMMITTED_EVENT_ROUTING_KEY);
+    }
+
+    @Bean
+    Binding inventoryResultDeadLetterReleasedBinding() {
+        return BindingBuilder.bind(inventoryResultDeadLetterQueue())
+                .to(inventoryDeadLetterExchange())
+                .with(INVENTORY_RELEASED_EVENT_ROUTING_KEY);
     }
 }

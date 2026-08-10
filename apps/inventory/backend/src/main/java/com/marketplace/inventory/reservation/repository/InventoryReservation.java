@@ -13,6 +13,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,6 +40,10 @@ public class InventoryReservation {
 
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InventoryReservationItem> items = new ArrayList<>();
@@ -136,6 +141,10 @@ public class InventoryReservation {
 
     public String getFailureReason() {
         return failureReason;
+    }
+
+    public long getVersion() {
+        return version;
     }
 
     public List<InventoryReservationItem> getItems() {

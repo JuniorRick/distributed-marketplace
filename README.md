@@ -92,7 +92,10 @@ Orders reads Cart once to create an immutable snapshot. The state-changing workf
 8. When Inventory succeeds, Orders commits a `CapturePaymentCommand.v1` outbox record with the immutable order total.
 9. Payments consumes the command idempotently and invokes its gateway adapter.
 10. Payments records a `CAPTURED` or `FAILED` payment and the matching result event in one transaction.
-11. Orders consumes the Payment result and transitions to `CONFIRMED` or `REJECTED`.
+11. For a captured payment, Orders transitions to `INVENTORY_COMMIT_PENDING` and publishes `CommitInventoryCommand.v1`.
+12. Inventory commits the reservation, publishes `InventoryCommittedEvent.v1`, and Orders transitions to `CONFIRMED`.
+13. For a failed payment, Orders transitions to `INVENTORY_RELEASE_PENDING` and publishes `ReleaseInventoryCommand.v1`.
+14. Inventory releases the reservation, publishes `InventoryReleasedEvent.v1`, and Orders transitions to `REJECTED`.
 
 The local gateway simulator captures payments by default. Start the stack with
 `PAYMENT_SIMULATOR_OUTCOME=FAILED` to exercise payment rejection.

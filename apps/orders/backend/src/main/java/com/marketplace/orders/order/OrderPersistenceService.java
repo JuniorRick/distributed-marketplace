@@ -6,6 +6,8 @@ import com.marketplace.orders.checkout.CheckoutMessagingConfiguration;
 import com.marketplace.orders.checkout.CheckoutResultListener.CheckoutResult;
 import com.marketplace.orders.inventory.InventoryMessagingConfiguration;
 import com.marketplace.orders.inventory.InventoryResultListener.InventoryReservationResult;
+import com.marketplace.orders.inventory.CommitInventoryCommand;
+import com.marketplace.orders.inventory.ReleaseInventoryCommand;
 import com.marketplace.orders.inventory.ReserveInventoryCommand;
 import com.marketplace.orders.messaging.OutboxService;
 import com.marketplace.orders.order.repository.Order;
@@ -110,9 +112,15 @@ public class OrderPersistenceService {
 
     @Transactional
     public void applyInventoryResult(InventoryReservationResult event) {
-        String eventType = "RESERVED".equals(event.outcome())
-            ? "InventoryReservedEvent.v1"
-            : "InventoryReservationRejectedEvent.v1";
+        String eventType = switch (event.outcome()) {
+            case "RESERVED" -> "InventoryReservedEvent.v1";
+            case "REJECTED" -> "InventoryReservationRejectedEvent.v1";
+            case "COMMITTED" -> "InventoryCommittedEvent.v1";
+            case "RELEASED" -> "InventoryReleasedEvent.v1";
+            default -> throw new IllegalArgumentException(
+                "Unknown inventory outcome: " + event.outcome()
+            );
+        };
         if (!claim(event.eventId(), eventType)) {
             return;
         }
@@ -123,6 +131,10 @@ public class OrderPersistenceService {
             requestPayment(order);
         } else if ("REJECTED".equals(event.outcome())) {
             order.reject(event.reason());
+        } else if ("COMMITTED".equals(event.outcome())) {
+            order.confirm();
+        } else if ("RELEASED".equals(event.outcome())) {
+            order.rejectAfterInventoryRelease();
         } else {
             throw new IllegalArgumentException("Unknown inventory outcome: " + event.outcome());
         }
@@ -146,9 +158,9 @@ public class OrderPersistenceService {
         }
 
         if ("CAPTURED".equals(event.outcome())) {
-            order.confirm();
+            requestInventoryCommit(order);
         } else if ("FAILED".equals(event.outcome())) {
-            order.reject(event.reason());
+            requestInventoryRelease(order, event.reason());
         } else {
             throw new IllegalArgumentException("Unknown payment outcome: " + event.outcome());
         }
@@ -179,6 +191,40 @@ public class OrderPersistenceService {
         );
     }
 
+    private void requestInventoryCommit(Order order) {
+        if (order.getStatus() != OrderStatus.PAYMENT_PENDING) {
+            return;
+        }
+        CommitInventoryCommand command = new CommitInventoryCommand(
+            UUID.randomUUID(), order.getPublicId(), Instant.now()
+        );
+        outboxService.enqueue(
+            command.eventId(),
+            "CommitInventoryCommand.v1",
+            InventoryMessagingConfiguration.EXCHANGE,
+            InventoryMessagingConfiguration.COMMIT_INVENTORY_COMMAND_ROUTING_KEY,
+            command
+        );
+        order.markInventoryCommitPending();
+    }
+
+    private void requestInventoryRelease(Order order, String reason) {
+        if (order.getStatus() != OrderStatus.PAYMENT_PENDING) {
+            return;
+        }
+        ReleaseInventoryCommand command = new ReleaseInventoryCommand(
+            UUID.randomUUID(), order.getPublicId(), Instant.now()
+        );
+        outboxService.enqueue(
+            command.eventId(),
+            "ReleaseInventoryCommand.v1",
+            InventoryMessagingConfiguration.EXCHANGE,
+            InventoryMessagingConfiguration.RELEASE_INVENTORY_COMMAND_ROUTING_KEY,
+            command
+        );
+        order.markInventoryReleasePending(reason);
+    }
+
     private void requestPayment(Order order) {
         if (order.getStatus() != OrderStatus.PENDING) {
             return;
@@ -198,6 +244,7 @@ public class OrderPersistenceService {
             PaymentMessagingConfiguration.CAPTURE_PAYMENT_COMMAND_ROUTING_KEY,
             command
         );
+        order.markPaymentPending();
     }
 
     private boolean claim(UUID eventId, String eventType) {

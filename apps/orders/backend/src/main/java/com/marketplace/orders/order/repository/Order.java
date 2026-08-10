@@ -13,6 +13,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -49,6 +50,10 @@ public class Order {
 
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
@@ -97,21 +102,67 @@ public class Order {
         if (status == OrderStatus.CONFIRMED) {
             return;
         }
-        if (status != OrderStatus.PENDING) {
-            throw new IllegalStateException("Only a pending order can be confirmed");
-        }
+        requireStatus(
+            OrderStatus.INVENTORY_COMMIT_PENDING,
+            "Only an order awaiting inventory commit can be confirmed"
+        );
         status = OrderStatus.CONFIRMED;
+    }
+
+    public void markPaymentPending() {
+        requireStatus(OrderStatus.PENDING, "Only a pending order can await payment");
+        status = OrderStatus.PAYMENT_PENDING;
+    }
+
+    public void markInventoryCommitPending() {
+        requireStatus(
+            OrderStatus.PAYMENT_PENDING,
+            "Only an order awaiting payment can await inventory commit"
+        );
+        status = OrderStatus.INVENTORY_COMMIT_PENDING;
+    }
+
+    public void markInventoryReleasePending(String reason) {
+        requireStatus(
+            OrderStatus.PAYMENT_PENDING,
+            "Only an order awaiting payment can await inventory release"
+        );
+        requireReason(reason);
+        status = OrderStatus.INVENTORY_RELEASE_PENDING;
+        failureReason = reason;
+    }
+
+    public void rejectAfterInventoryRelease() {
+        if (status == OrderStatus.REJECTED) {
+            return;
+        }
+        requireStatus(
+            OrderStatus.INVENTORY_RELEASE_PENDING,
+            "Only an order awaiting inventory release can be rejected"
+        );
+        status = OrderStatus.REJECTED;
     }
 
     public void reject(String reason) {
         if (status == OrderStatus.REJECTED) {
             return;
         }
-        if (status != OrderStatus.PENDING) {
-            throw new IllegalStateException("Only a pending order can be rejected");
-        }
+        requireStatus(OrderStatus.PENDING, "Only a pending order can be rejected");
+        requireReason(reason);
         status = OrderStatus.REJECTED;
         failureReason = reason;
+    }
+
+    private void requireStatus(OrderStatus expected, String message) {
+        if (status != expected) {
+            throw new IllegalStateException(message);
+        }
+    }
+
+    private void requireReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("A rejection reason is required");
+        }
     }
 
     @PrePersist
@@ -159,6 +210,10 @@ public class Order {
 
     public String getFailureReason() {
         return failureReason;
+    }
+
+    public long getVersion() {
+        return version;
     }
 
     public List<OrderItem> getItems() {

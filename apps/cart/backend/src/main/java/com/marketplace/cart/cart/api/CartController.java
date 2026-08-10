@@ -69,6 +69,7 @@ public class CartController {
         return ResponseEntity.ok(cartApiMapper.toResponse(cart));
     }
 
+    @Deprecated
     @PostMapping("/{id}/checkout")
     public ResponseEntity<CartResponse> checkout(@PathVariable UUID id) {
         var cart = cartService.checkout(id);
