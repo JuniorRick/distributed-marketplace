@@ -1,6 +1,7 @@
 package com.marketplace.orders.order;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -14,6 +15,10 @@ import com.marketplace.orders.inventory.ReserveInventoryCommand;
 import com.marketplace.orders.messaging.OutboxService;
 import com.marketplace.orders.order.repository.Order;
 import com.marketplace.orders.order.repository.OrderRepository;
+import com.marketplace.orders.payment.CapturePaymentCommand;
+import com.marketplace.orders.payment.PaymentMessagingConfiguration;
+import com.marketplace.orders.payment.PaymentResultListener.PaymentResult;
+import com.marketplace.orders.shared.ConflictException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
@@ -76,7 +81,7 @@ class OrderPersistenceServiceTest {
     }
 
     @Test
-    void reservedInventoryConfirmsPendingOrder() {
+    void reservedInventoryRequestsPaymentWithoutConfirmingOrder() {
         Order order = pendingOrder();
         UUID eventId = UUID.randomUUID();
         when(jdbcTemplate.update(anyString(), eq(eventId), eq("InventoryReservedEvent.v1")))
@@ -92,8 +97,89 @@ class OrderPersistenceServiceTest {
                 Instant.now()
         ));
 
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        ArgumentCaptor<CapturePaymentCommand> command = ArgumentCaptor.forClass(
+                CapturePaymentCommand.class
+        );
+        verify(outboxService).enqueue(
+                any(UUID.class),
+                eq("CapturePaymentCommand.v1"),
+                eq(PaymentMessagingConfiguration.EXCHANGE),
+                eq(PaymentMessagingConfiguration.CAPTURE_PAYMENT_COMMAND_ROUTING_KEY),
+                command.capture()
+        );
+        assertThat(command.getValue().amount()).isEqualByComparingTo(order.getTotalAmount());
+        assertThat(command.getValue().currency()).isEqualTo(order.getCurrency());
+        assertThat(command.getValue().customerId()).isEqualTo(order.getCustomerId());
+    }
+
+    @Test
+    void capturedPaymentConfirmsPendingOrder() {
+        Order order = pendingOrder();
+        UUID eventId = UUID.randomUUID();
+        when(jdbcTemplate.update(anyString(), eq(eventId), eq("PaymentCapturedEvent.v1")))
+                .thenReturn(1);
+        when(orderRepository.findByPublicId(order.getPublicId())).thenReturn(Optional.of(order));
+
+        service.applyPaymentResult(paymentResult(eventId, order, "CAPTURED", null));
+
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         verify(orderRepository).save(order);
+    }
+
+    @Test
+    void failedPaymentRejectsPendingOrder() {
+        Order order = pendingOrder();
+        UUID eventId = UUID.randomUUID();
+        when(jdbcTemplate.update(anyString(), eq(eventId), eq("PaymentFailedEvent.v1")))
+                .thenReturn(1);
+        when(orderRepository.findByPublicId(order.getPublicId())).thenReturn(Optional.of(order));
+
+        service.applyPaymentResult(paymentResult(eventId, order, "FAILED", "declined"));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(order.getFailureReason()).isEqualTo("declined");
+    }
+
+    @Test
+    void rejectsPaymentResultWithDifferentAmount() {
+        Order order = pendingOrder();
+        UUID eventId = UUID.randomUUID();
+        when(jdbcTemplate.update(anyString(), eq(eventId), eq("PaymentCapturedEvent.v1")))
+                .thenReturn(1);
+        when(orderRepository.findByPublicId(order.getPublicId())).thenReturn(Optional.of(order));
+        PaymentResult result = new PaymentResult(
+                eventId,
+                UUID.randomUUID(),
+                order.getPublicId(),
+                "CAPTURED",
+                order.getTotalAmount().add(BigDecimal.ONE),
+                order.getCurrency(),
+                null,
+                Instant.now()
+        );
+
+        assertThatThrownBy(() -> service.applyPaymentResult(result))
+                .isInstanceOf(ConflictException.class);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+    }
+
+    private static PaymentResult paymentResult(
+            UUID eventId,
+            Order order,
+            String outcome,
+            String reason
+    ) {
+        return new PaymentResult(
+                eventId,
+                UUID.randomUUID(),
+                order.getPublicId(),
+                outcome,
+                order.getTotalAmount(),
+                order.getCurrency(),
+                reason,
+                Instant.now()
+        );
     }
 
     private static Order pendingOrder() {
