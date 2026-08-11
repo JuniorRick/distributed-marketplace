@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Currency;
@@ -46,6 +47,9 @@ public class Payment {
     @Column(name = "gateway_reference", length = 100)
     private String gatewayReference;
 
+    @Column(name = "refund_reference", length = 100)
+    private String refundReference;
+
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
 
@@ -57,6 +61,10 @@ public class Payment {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     protected Payment() {
     }
@@ -95,6 +103,32 @@ public class Payment {
         status = PaymentStatus.FAILED;
         failureReason = reason;
         processedAt = Instant.now();
+    }
+
+    public void refund(String refundReference) {
+        if (status == PaymentStatus.REFUNDED) {
+            return;
+        }
+        if (status != PaymentStatus.CAPTURED) {
+            throw new IllegalStateException("Only a captured payment can be refunded");
+        }
+        if (refundReference == null || refundReference.isBlank()) {
+            throw new IllegalArgumentException("Refund reference is required");
+        }
+        status = PaymentStatus.REFUNDED;
+        this.refundReference = refundReference;
+        failureReason = null;
+        processedAt = Instant.now();
+    }
+
+    public void recordRefundFailure(String reason) {
+        if (status != PaymentStatus.CAPTURED) {
+            throw new IllegalStateException("Only a captured payment can record a refund failure");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("Refund failure reason is required");
+        }
+        failureReason = reason;
     }
 
     private void requirePending() {
@@ -153,6 +187,10 @@ public class Payment {
         return gatewayReference;
     }
 
+    public String getRefundReference() {
+        return refundReference;
+    }
+
     public String getFailureReason() {
         return failureReason;
     }
@@ -167,5 +205,9 @@ public class Payment {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public long getVersion() {
+        return version;
     }
 }

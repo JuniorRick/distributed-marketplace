@@ -40,6 +40,12 @@ cart:
 marketplace:
   outbox:
     fixed-delay: ${OUTBOX_FIXED_DELAY:1s}
+  saga:
+    reconciliation:
+      initial-delay: ${SAGA_RECONCILIATION_INITIAL_DELAY:30s}
+      fixed-delay: ${SAGA_RECONCILIATION_FIXED_DELAY:30s}
+      stale-after: ${SAGA_RECONCILIATION_STALE_AFTER:1m}
+      max-attempts: ${SAGA_RECONCILIATION_MAX_ATTEMPTS:5}
 
 management:
   endpoints:

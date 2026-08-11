@@ -16,9 +16,21 @@ const order: Order = {
 
 describe('OrderStatusMessage', () => {
   it('shows that pending checkout is being processed', () => {
-    render(<OrderStatusMessage order={order} />);
+    render(<OrderStatusMessage order={{ ...order, status: 'REFUND_PENDING' }} />);
 
     expect(screen.getByText('Checkout is being processed...')).toBeInTheDocument();
+  });
+
+  it('shows refunded orders explicitly', () => {
+    render(
+      <OrderStatusMessage
+        order={{ ...order, status: 'REFUNDED', failureReason: 'Inventory commit timed out' }}
+      />,
+    );
+
+    expect(
+      screen.getByText('Order cancelled and payment refunded: Inventory commit timed out'),
+    ).toBeInTheDocument();
   });
 
   it('shows the rejection reason', () => {

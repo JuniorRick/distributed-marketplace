@@ -82,7 +82,7 @@ Default URLs:
 
 Orders reads Cart once to create an immutable snapshot. The state-changing workflow then runs asynchronously through RabbitMQ:
 
-1. Orders commits a `PENDING` Order and `CheckoutCartCommand.v1` outbox record in one transaction.
+1. Orders commits a `CHECKOUT_PENDING` Order and `CheckoutCartCommand.v1` outbox record in one transaction.
 2. The Orders outbox publisher sends the request to RabbitMQ.
 3. Cart consumes the request idempotently, checks out its Cart, and commits a result outbox record.
 4. Cart publishes either `CartCheckedOutEvent.v1` or `CartCheckoutRejectedEvent.v1`.
@@ -96,6 +96,17 @@ Orders reads Cart once to create an immutable snapshot. The state-changing workf
 12. Inventory commits the reservation, publishes `InventoryCommittedEvent.v1`, and Orders transitions to `CONFIRMED`.
 13. For a failed payment, Orders transitions to `INVENTORY_RELEASE_PENDING` and publishes `ReleaseInventoryCommand.v1`.
 14. Inventory releases the reservation, publishes `InventoryReleasedEvent.v1`, and Orders transitions to `REJECTED`.
+
+If inventory commit remains unacknowledged after the configured reconciliation attempts, Orders first requests an
+inventory release. A confirmed release moves the order to `REFUND_PENDING` and emits `RefundPaymentCommand.v1`.
+Payments uses the payment ID as the gateway idempotency key and publishes either `PaymentRefundedEvent.v1` or
+`PaymentRefundFailedEvent.v1`. A successful refund finishes the order as `REFUNDED`; exhausted release or refund
+retries move it to `MANUAL_REVIEW`.
+
+The Orders reconciliation scheduler scans stale non-terminal phases, republishes their commands, and increments
+`reconciliation_attempts`. Its defaults are a one-minute stale threshold, a 30-second scan interval, and five
+attempts. Configure them with `SAGA_RECONCILIATION_STALE_AFTER`, `SAGA_RECONCILIATION_FIXED_DELAY`, and
+`SAGA_RECONCILIATION_MAX_ATTEMPTS`.
 
 The local gateway simulator captures payments by default. Start the stack with
 `PAYMENT_SIMULATOR_OUTCOME=FAILED` to exercise payment rejection.
@@ -112,13 +123,6 @@ Outbox delivery is at-least-once. Consumer inbox tables make duplicate events ha
 
 RabbitMQ management is available at `http://localhost:15672` using `marketplace` for both username and password.
 
-## First Practice Goals
-
-1. Add product search and category filtering in catalog.
-2. Add cart as a separate SCS that calls catalog for product snapshots.
-3. Add orders as a separate SCS and keep order product snapshots immutable.
-4. Introduce catalog events only after the REST flow works.
-
 ## Shared Frontend Styles
 
 Reusable UI tokens, base styles, and layout primitives live in `packages/marketplace-ui`.
@@ -129,5 +133,3 @@ Each frontend imports the shared stylesheet before app-specific CSS:
 import '@marketplace/ui/styles.css';
 import './styles.css';
 ```
-
-Keep cross-module styling in the shared package and keep only SCS-specific presentation in each app frontend.

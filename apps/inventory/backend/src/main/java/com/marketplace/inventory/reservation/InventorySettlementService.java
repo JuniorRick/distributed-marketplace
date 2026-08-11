@@ -78,6 +78,12 @@ public class InventorySettlementService {
                 "Inventory reservation not found. Order ID=" + orderId
             ));
         if (reservation.getStatus() == targetStatus) {
+            publishResult(reservation);
+            return;
+        }
+        if (reservation.getStatus() == ReservationStatus.COMMITTED
+                || reservation.getStatus() == ReservationStatus.RELEASED) {
+            publishResult(reservation);
             return;
         }
         if (reservation.getStatus() != ReservationStatus.RESERVED) {

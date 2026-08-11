@@ -30,6 +30,18 @@ class PaymentTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
+    @Test
+    void refundsCapturedPaymentIdempotently() {
+        Payment payment = payment();
+        payment.capture("capture-123");
+
+        payment.refund("refund-123");
+        payment.refund("ignored-duplicate");
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+        assertThat(payment.getRefundReference()).isEqualTo("refund-123");
+    }
+
     private static Payment payment() {
         return new Payment(
                 UUID.randomUUID(),

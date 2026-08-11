@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchOrder } from '../api/ordersApi';
-import type { Order } from '../model/Order';
+import { PROCESSING_ORDER_STATUSES, type Order } from '../model/Order';
 
 export function useOrder() {
   const orderId = useMemo(
@@ -28,7 +28,7 @@ export function useOrder() {
         setOrder(response);
         setError(null);
         setIsLoading(false);
-        if (response.status === 'PENDING') {
+        if (PROCESSING_ORDER_STATUSES.has(response.status)) {
           pollTimer = window.setTimeout(loadOrder, 1000);
         }
       } catch (requestError) {

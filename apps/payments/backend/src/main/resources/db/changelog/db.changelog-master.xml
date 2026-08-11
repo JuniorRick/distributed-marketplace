@@ -5,4 +5,5 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <include file="db/changelog/changes/db.payments-1.0.sql"/>
+    <include file="db/changelog/changes/db.payments-2.0.sql"/>
 </databaseChangeLog>

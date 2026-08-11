@@ -49,7 +49,9 @@ public class InventoryReservationService {
         if (!claim(command.eventId())) {
             return;
         }
-        if (reservationRepository.existsByOrderId(command.orderId())) {
+        var existing = reservationRepository.findByOrderId(command.orderId());
+        if (existing.isPresent()) {
+            publishResult(existing.get());
             return;
         }
 
@@ -102,7 +104,8 @@ public class InventoryReservationService {
     }
 
     private void publishResult(InventoryReservation reservation) {
-        boolean reserved = reservation.getStatus() == ReservationStatus.RESERVED;
+        boolean reserved = reservation.getStatus() != ReservationStatus.REJECTED
+                && reservation.getStatus() != ReservationStatus.PENDING;
         InventoryReservationResult result = new InventoryReservationResult(
                 UUID.randomUUID(),
                 reservation.getOrderId(),
