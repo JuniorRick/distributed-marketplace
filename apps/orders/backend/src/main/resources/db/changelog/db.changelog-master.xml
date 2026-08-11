@@ -9,4 +9,5 @@
     <include file="changes/db.orders-2.0.sql" relativeToChangelogFile="true"/>
     <include file="changes/db.orders-3.0.sql" relativeToChangelogFile="true"/>
     <include file="changes/db.orders-4.0.sql" relativeToChangelogFile="true"/>
+    <include file="changes/db.orders-5.0.sql" relativeToChangelogFile="true"/>
 </databaseChangeLog>

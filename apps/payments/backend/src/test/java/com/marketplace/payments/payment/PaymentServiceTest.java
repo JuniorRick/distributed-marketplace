@@ -10,8 +10,10 @@ import static org.mockito.Mockito.when;
 
 import com.marketplace.payments.messaging.OutboxService;
 import com.marketplace.payments.payment.PaymentGateway.CaptureResult;
+import com.marketplace.payments.payment.PaymentGateway.RefundResult;
 import com.marketplace.payments.payment.messaging.CapturePaymentCommand;
 import com.marketplace.payments.payment.messaging.PaymentMessagingConfiguration;
+import com.marketplace.payments.payment.messaging.RefundPaymentCommand;
 import com.marketplace.payments.payment.repository.Payment;
 import com.marketplace.payments.payment.repository.PaymentRepository;
 import java.math.BigDecimal;
@@ -94,10 +96,38 @@ class PaymentServiceTest {
         verifyNoInteractions(paymentRepository, paymentGateway, outboxService);
     }
 
+    @Test
+    void refundsCapturedPaymentAndPublishesRefundedEvent() {
+        Payment payment = new Payment(
+                UUID.randomUUID(), UUID.randomUUID(), new BigDecimal("59.80"), "USD"
+        );
+        payment.capture("capture-123");
+        RefundPaymentCommand command = new RefundPaymentCommand(
+                UUID.randomUUID(), payment.getOrderId(), "Inventory commit failed", Instant.now()
+        );
+        when(jdbcTemplate.update(
+                anyString(), eq(command.eventId()), eq("RefundPaymentCommand.v1")
+        )).thenReturn(1);
+        when(paymentRepository.findByOrderId(payment.getOrderId())).thenReturn(java.util.Optional.of(payment));
+        when(paymentGateway.refund(any())).thenReturn(RefundResult.refunded("refund-123"));
+        when(paymentRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.handle(command);
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+        assertThat(payment.getRefundReference()).isEqualTo("refund-123");
+        verify(outboxService).enqueue(
+                any(UUID.class),
+                eq("PaymentRefundedEvent.v1"),
+                eq(PaymentMessagingConfiguration.PAYMENT_REFUNDED_EVENT_ROUTING_KEY),
+                any()
+        );
+    }
+
     private void prepareNewCommand(CapturePaymentCommand command) {
         when(jdbcTemplate.update(anyString(), eq(command.eventId()), eq("CapturePaymentCommand.v1")))
                 .thenReturn(1);
-        when(paymentRepository.existsByOrderId(command.orderId())).thenReturn(false);
+        when(paymentRepository.findByOrderId(command.orderId())).thenReturn(java.util.Optional.empty());
         when(paymentRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 

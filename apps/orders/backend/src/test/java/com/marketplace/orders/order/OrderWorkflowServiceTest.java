@@ -42,7 +42,7 @@ class OrderWorkflowServiceTest {
         var result = orderWorkflowService.createFromCart(cartId);
 
         assertThat(result.created()).isTrue();
-        assertThat(result.order().getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(result.order().getStatus()).isEqualTo(OrderStatus.CHECKOUT_PENDING);
         verify(orderPersistenceService).createPendingAndRequestCheckout(cart);
     }
 
@@ -67,6 +67,7 @@ class OrderWorkflowServiceTest {
         order.addItem(
                 UUID.randomUUID(), "BOOK-001", "Book", new BigDecimal("10.00"), "USD", 1
         );
+        order.markCheckoutPending();
         return order;
     }
 

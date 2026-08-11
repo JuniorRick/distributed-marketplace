@@ -20,6 +20,7 @@ import com.marketplace.orders.order.repository.OrderRepository;
 import com.marketplace.orders.payment.CapturePaymentCommand;
 import com.marketplace.orders.payment.PaymentMessagingConfiguration;
 import com.marketplace.orders.payment.PaymentResultListener.PaymentResult;
+import com.marketplace.orders.payment.RefundPaymentCommand;
 import com.marketplace.orders.shared.ConflictException;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -51,6 +52,7 @@ class OrderPersistenceServiceTest {
     @Test
     void checkedOutCartRequestsInventoryWithoutConfirmingOrder() {
         Order order = pendingOrder();
+        order.markCheckoutPending();
         UUID eventId = UUID.randomUUID();
         when(jdbcTemplate.update(anyString(), eq(eventId), eq("CartCheckedOutEvent.v1")))
                 .thenReturn(1);
@@ -65,7 +67,7 @@ class OrderPersistenceServiceTest {
                 Instant.now()
         ));
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.INVENTORY_RESERVATION_PENDING);
         ArgumentCaptor<ReserveInventoryCommand> command = ArgumentCaptor.forClass(
                 ReserveInventoryCommand.class
         );
@@ -85,6 +87,7 @@ class OrderPersistenceServiceTest {
     @Test
     void reservedInventoryRequestsPaymentWithoutConfirmingOrder() {
         Order order = pendingOrder();
+        order.markInventoryReservationPending();
         UUID eventId = UUID.randomUUID();
         when(jdbcTemplate.update(anyString(), eq(eventId), eq("InventoryReservedEvent.v1")))
                 .thenReturn(1);
@@ -177,6 +180,32 @@ class OrderPersistenceServiceTest {
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.REJECTED);
         assertThat(order.getFailureReason()).isEqualTo("declined");
+    }
+
+    @Test
+    void releasedCompensationRequestsRefundAndRefundResultCompletesOrder() {
+        Order order = pendingOrder();
+        order.markPaymentPending();
+        order.markInventoryCommitPending();
+        order.markInventoryReleaseForRefundPending("Inventory commit timed out");
+
+        applyInventoryResult(order, "RELEASED", null);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUND_PENDING);
+        verify(outboxService).enqueue(
+                any(UUID.class),
+                eq("RefundPaymentCommand.v1"),
+                eq(PaymentMessagingConfiguration.EXCHANGE),
+                eq(PaymentMessagingConfiguration.REFUND_PAYMENT_COMMAND_ROUTING_KEY),
+                any(RefundPaymentCommand.class)
+        );
+
+        UUID eventId = UUID.randomUUID();
+        when(jdbcTemplate.update(anyString(), eq(eventId), eq("PaymentRefundedEvent.v1")))
+                .thenReturn(1);
+        service.applyPaymentResult(paymentResult(eventId, order, "REFUNDED", null));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDED);
     }
 
     @Test

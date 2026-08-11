@@ -37,6 +37,7 @@ spring:
 marketplace:
   payment:
     simulator-outcome: ${PAYMENT_SIMULATOR_OUTCOME:CAPTURED}
+    simulator-refund-outcome: ${PAYMENT_SIMULATOR_REFUND_OUTCOME:REFUNDED}
   outbox:
     fixed-delay: ${OUTBOX_FIXED_DELAY:1s}
 

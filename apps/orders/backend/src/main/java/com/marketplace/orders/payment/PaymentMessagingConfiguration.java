@@ -16,8 +16,11 @@ public class PaymentMessagingConfiguration {
     public static final String RESULT_QUEUE = "orders.payment-results.v1";
     public static final String RESULT_DEAD_LETTER_QUEUE = "orders.payment-results.dlq.v1";
     public static final String CAPTURE_PAYMENT_COMMAND_ROUTING_KEY = "payment.command.capture.v1";
+    public static final String REFUND_PAYMENT_COMMAND_ROUTING_KEY = "payment.command.refund.v1";
     public static final String PAYMENT_CAPTURED_EVENT_ROUTING_KEY = "payment.event.captured.v1";
     public static final String PAYMENT_FAILED_EVENT_ROUTING_KEY = "payment.event.failed.v1";
+    public static final String PAYMENT_REFUNDED_EVENT_ROUTING_KEY = "payment.event.refunded.v1";
+    public static final String PAYMENT_REFUND_FAILED_EVENT_ROUTING_KEY = "payment.event.refund-failed.v1";
 
     @Bean
     DirectExchange paymentExchange() {
@@ -56,6 +59,20 @@ public class PaymentMessagingConfiguration {
     }
 
     @Bean
+    Binding paymentRefundedBinding() {
+        return BindingBuilder.bind(paymentResultQueue())
+                .to(paymentExchange())
+                .with(PAYMENT_REFUNDED_EVENT_ROUTING_KEY);
+    }
+
+    @Bean
+    Binding paymentRefundFailedBinding() {
+        return BindingBuilder.bind(paymentResultQueue())
+                .to(paymentExchange())
+                .with(PAYMENT_REFUND_FAILED_EVENT_ROUTING_KEY);
+    }
+
+    @Bean
     Binding paymentResultDeadLetterCapturedBinding() {
         return BindingBuilder.bind(paymentResultDeadLetterQueue())
                 .to(paymentDeadLetterExchange())
@@ -67,5 +84,19 @@ public class PaymentMessagingConfiguration {
         return BindingBuilder.bind(paymentResultDeadLetterQueue())
                 .to(paymentDeadLetterExchange())
                 .with(PAYMENT_FAILED_EVENT_ROUTING_KEY);
+    }
+
+    @Bean
+    Binding paymentResultDeadLetterRefundedBinding() {
+        return BindingBuilder.bind(paymentResultDeadLetterQueue())
+                .to(paymentDeadLetterExchange())
+                .with(PAYMENT_REFUNDED_EVENT_ROUTING_KEY);
+    }
+
+    @Bean
+    Binding paymentResultDeadLetterRefundFailedBinding() {
+        return BindingBuilder.bind(paymentResultDeadLetterQueue())
+                .to(paymentDeadLetterExchange())
+                .with(PAYMENT_REFUND_FAILED_EVENT_ROUTING_KEY);
     }
 }

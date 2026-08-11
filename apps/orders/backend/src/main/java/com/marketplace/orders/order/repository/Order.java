@@ -39,7 +39,7 @@ public class Order {
     private UUID customerId;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 32)
+    @Column(nullable = false, length = 48)
     private OrderStatus status;
 
     @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
@@ -54,6 +54,9 @@ public class Order {
     @Version
     @Column(nullable = false)
     private long version;
+
+    @Column(name = "reconciliation_attempts", nullable = false)
+    private int reconciliationAttempts;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
@@ -77,12 +80,12 @@ public class Order {
     }
 
     public void addItem(
-            UUID productId,
-            String productSku,
-            String productName,
-            BigDecimal unitPriceAmount,
-            String currency,
-            int quantity
+        UUID productId,
+        String productSku,
+        String productName,
+        BigDecimal unitPriceAmount,
+        String currency,
+        int quantity
     ) {
         if (status != OrderStatus.PENDING) {
             throw new IllegalStateException("Items cannot be changed after order confirmation");
@@ -92,7 +95,7 @@ public class Order {
         }
 
         OrderItem item = new OrderItem(
-                this, productId, productSku, productName, unitPriceAmount, currency, quantity
+            this, productId, productSku, productName, unitPriceAmount, currency, quantity
         );
         items.add(item);
         totalAmount = totalAmount.add(item.getLineTotalAmount());
@@ -102,16 +105,36 @@ public class Order {
         if (status == OrderStatus.CONFIRMED) {
             return;
         }
-        requireStatus(
+        requireOneOf(
+            "Only an order settling committed inventory can be confirmed",
             OrderStatus.INVENTORY_COMMIT_PENDING,
-            "Only an order awaiting inventory commit can be confirmed"
+            OrderStatus.INVENTORY_RELEASE_FOR_REFUND_PENDING,
+            OrderStatus.MANUAL_REVIEW
         );
-        status = OrderStatus.CONFIRMED;
+        transitionTo(OrderStatus.CONFIRMED);
+    }
+
+    public void markCheckoutPending() {
+        requireStatus(OrderStatus.PENDING, "Only a new order can await checkout");
+        transitionTo(OrderStatus.CHECKOUT_PENDING);
+    }
+
+    public void markInventoryReservationPending() {
+        requireOneOf(
+            "Only an order awaiting checkout can await inventory reservation",
+            OrderStatus.PENDING,
+            OrderStatus.CHECKOUT_PENDING
+        );
+        transitionTo(OrderStatus.INVENTORY_RESERVATION_PENDING);
     }
 
     public void markPaymentPending() {
-        requireStatus(OrderStatus.PENDING, "Only a pending order can await payment");
-        status = OrderStatus.PAYMENT_PENDING;
+        requireOneOf(
+            "Only an order awaiting inventory can await payment",
+            OrderStatus.PENDING,
+            OrderStatus.INVENTORY_RESERVATION_PENDING
+        );
+        transitionTo(OrderStatus.PAYMENT_PENDING);
     }
 
     public void markInventoryCommitPending() {
@@ -119,7 +142,7 @@ public class Order {
             OrderStatus.PAYMENT_PENDING,
             "Only an order awaiting payment can await inventory commit"
         );
-        status = OrderStatus.INVENTORY_COMMIT_PENDING;
+        transitionTo(OrderStatus.INVENTORY_COMMIT_PENDING);
     }
 
     public void markInventoryReleasePending(String reason) {
@@ -128,7 +151,7 @@ public class Order {
             "Only an order awaiting payment can await inventory release"
         );
         requireReason(reason);
-        status = OrderStatus.INVENTORY_RELEASE_PENDING;
+        transitionTo(OrderStatus.INVENTORY_RELEASE_PENDING);
         failureReason = reason;
     }
 
@@ -140,23 +163,100 @@ public class Order {
             OrderStatus.INVENTORY_RELEASE_PENDING,
             "Only an order awaiting inventory release can be rejected"
         );
-        status = OrderStatus.REJECTED;
+        transitionTo(OrderStatus.REJECTED);
+    }
+
+    public void markInventoryReleaseForRefundPending(String reason) {
+        requireStatus(
+            OrderStatus.INVENTORY_COMMIT_PENDING,
+            "Only an order awaiting inventory commit can start compensation"
+        );
+        requireReason(reason);
+        transitionTo(OrderStatus.INVENTORY_RELEASE_FOR_REFUND_PENDING);
+        failureReason = reason;
+    }
+
+    public void markRefundPending(String reason) {
+        requireStatus(
+            OrderStatus.INVENTORY_RELEASE_FOR_REFUND_PENDING,
+            "Only an order with released inventory can await a refund"
+        );
+        requireReason(reason);
+        transitionTo(OrderStatus.REFUND_PENDING);
+        failureReason = reason;
+    }
+
+    public void markRefunded() {
+        if (status == OrderStatus.REFUNDED) {
+            return;
+        }
+        requireOneOf(
+            "Only an order awaiting or manually reviewing a refund can be refunded",
+            OrderStatus.REFUND_PENDING,
+            OrderStatus.MANUAL_REVIEW
+        );
+        transitionTo(OrderStatus.REFUNDED);
+    }
+
+    public void recordRefundFailure(String reason) {
+        requireStatus(OrderStatus.REFUND_PENDING, "Order is not awaiting a refund");
+        requireReason(reason);
+        failureReason = reason;
+    }
+
+    public void markManualReview(String reason) {
+        if (status.isTerminal()) {
+            throw new IllegalStateException("A terminal order cannot enter manual review");
+        }
+        requireReason(reason);
+        transitionTo(OrderStatus.MANUAL_REVIEW);
+        failureReason = reason;
+    }
+
+    public void recordReconciliationAttempt() {
+        if (status.isTerminal() || status == OrderStatus.MANUAL_REVIEW) {
+            throw new IllegalStateException("This order cannot be reconciled");
+        }
+        reconciliationAttempts++;
     }
 
     public void reject(String reason) {
         if (status == OrderStatus.REJECTED) {
             return;
         }
-        requireStatus(OrderStatus.PENDING, "Only a pending order can be rejected");
+        requireOneOf(
+            "Only an order awaiting checkout or inventory can be rejected",
+            OrderStatus.PENDING,
+            OrderStatus.CHECKOUT_PENDING,
+            OrderStatus.INVENTORY_RESERVATION_PENDING
+        );
         requireReason(reason);
-        status = OrderStatus.REJECTED;
+        transitionTo(OrderStatus.REJECTED);
         failureReason = reason;
+    }
+
+    private void transitionTo(OrderStatus nextStatus) {
+        status = nextStatus;
+        resetReconciliation();
+    }
+
+    private void resetReconciliation() {
+        reconciliationAttempts = 0;
     }
 
     private void requireStatus(OrderStatus expected, String message) {
         if (status != expected) {
             throw new IllegalStateException(message);
         }
+    }
+
+    private void requireOneOf(String message, OrderStatus... expectedStatuses) {
+        for (OrderStatus expected : expectedStatuses) {
+            if (status == expected) {
+                return;
+            }
+        }
+        throw new IllegalStateException(message);
     }
 
     private void requireReason(String reason) {
@@ -214,6 +314,10 @@ public class Order {
 
     public long getVersion() {
         return version;
+    }
+
+    public int getReconciliationAttempts() {
+        return reconciliationAttempts;
     }
 
     public List<OrderItem> getItems() {

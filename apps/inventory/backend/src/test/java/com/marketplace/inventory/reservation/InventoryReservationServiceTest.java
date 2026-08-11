@@ -123,7 +123,7 @@ class InventoryReservationServiceTest {
         List<InventoryItem> inventoryItems
     ) {
         when(jdbcTemplate.update(anyString(), eq(command.eventId()), eq("ReserveInventoryCommand.v1"))).thenReturn(1);
-        when(reservationRepository.existsByOrderId(command.orderId())).thenReturn(false);
+        when(reservationRepository.findByOrderId(command.orderId())).thenReturn(java.util.Optional.empty());
         when(inventoryItemRepository.findAllByProductIdIn(anyCollection())).thenReturn(inventoryItems);
         when(reservationRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }

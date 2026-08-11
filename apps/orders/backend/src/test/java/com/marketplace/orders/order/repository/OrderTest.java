@@ -56,4 +56,17 @@ class OrderTest {
         assertThat(order.getStatus()).isEqualTo(OrderStatus.REJECTED);
         assertThat(order.getFailureReason()).isEqualTo("Payment declined");
     }
+
+    @Test
+    void refundsOnlyAfterInventoryCompensationCompletes() {
+        Order order = new Order(UUID.randomUUID(), UUID.randomUUID(), "USD");
+        order.markPaymentPending();
+        order.markInventoryCommitPending();
+        order.markInventoryReleaseForRefundPending("Inventory commit timed out");
+        order.markRefundPending("Inventory commit timed out");
+
+        order.markRefunded();
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDED);
+    }
 }

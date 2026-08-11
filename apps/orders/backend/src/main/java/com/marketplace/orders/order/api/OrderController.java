@@ -34,7 +34,7 @@ public class OrderController {
     public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {
         var result = orderWorkflowService.createFromCart(request.cartId());
         var response = orderApiMapper.toResponse(result.order());
-        if (response.status() != com.marketplace.orders.order.OrderStatus.PENDING) {
+        if (response.status().isTerminal()) {
             return ResponseEntity.ok(response);
         }
         return ResponseEntity
