@@ -1,4 +1,4 @@
-package com.marketplace.cart.messaging;
+package com.marketplace.cart.outbox;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;

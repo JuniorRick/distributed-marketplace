@@ -2,8 +2,9 @@ package com.marketplace.inventory.reservation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.marketplace.inventory.messaging.OutboxPublisher;
-import com.marketplace.inventory.messaging.OutboxService;
+import com.marketplace.inventory.cdc.outbox.InventoryAvailabilityOutboxPublisher;
+import com.marketplace.inventory.outbox.OutboxPublisher;
+import com.marketplace.inventory.outbox.OutboxService;
 import com.marketplace.inventory.reservation.messaging.ReserveInventoryCommand;
 import com.marketplace.inventory.reservation.repository.InventoryReservationRepository;
 import com.marketplace.inventory.shared.InventoryIntegrationTest;
@@ -19,6 +20,7 @@ import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 class InventoryReservationConcurrencyIT extends InventoryIntegrationTest {
@@ -32,11 +34,17 @@ class InventoryReservationConcurrencyIT extends InventoryIntegrationTest {
     @Autowired
     private InventoryReservationRepository reservationRepository;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @MockitoBean
     private OutboxService outboxService;
 
     @MockitoBean
     private OutboxPublisher outboxPublisher;
+
+    @MockitoBean
+    private InventoryAvailabilityOutboxPublisher availabilityOutboxPublisher;
 
     @Test
     void concurrentReservationsDoNotOversellStock() throws Exception {
@@ -65,6 +73,11 @@ class InventoryReservationConcurrencyIT extends InventoryIntegrationTest {
             reservationRepository.findByOrderId(first.orderId()).orElseThrow().getStatus(),
             reservationRepository.findByOrderId(second.orderId()).orElseThrow().getStatus()
         )).containsExactlyInAnyOrder(ReservationStatus.RESERVED, ReservationStatus.REJECTED);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT count(*)
+                FROM inventory_availability_outbox
+                WHERE product_id = ?
+                """, Integer.class, productId)).isEqualTo(1);
     }
 
     private void handleWithListenerRetry(

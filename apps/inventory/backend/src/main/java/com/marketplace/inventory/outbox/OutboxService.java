@@ -1,4 +1,4 @@
-package com.marketplace.inventory.messaging;
+package com.marketplace.inventory.outbox;
 
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;

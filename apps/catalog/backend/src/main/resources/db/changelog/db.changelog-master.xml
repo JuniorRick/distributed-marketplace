@@ -6,4 +6,5 @@
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <include file="changes/db.products-1.0.sql" relativeToChangelogFile="true"/>
+    <include file="changes/db.products-2.0.sql" relativeToChangelogFile="true"/>
 </databaseChangeLog>

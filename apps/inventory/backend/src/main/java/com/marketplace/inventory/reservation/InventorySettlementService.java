@@ -1,6 +1,7 @@
 package com.marketplace.inventory.reservation;
 
-import com.marketplace.inventory.messaging.OutboxService;
+import com.marketplace.inventory.cdc.outbox.InventoryAvailabilityOutboxService;
+import com.marketplace.inventory.outbox.OutboxService;
 import com.marketplace.inventory.reservation.messaging.CommitInventoryCommand;
 import com.marketplace.inventory.reservation.messaging.InventoryMessagingConfiguration;
 import com.marketplace.inventory.reservation.messaging.InventorySettlementResult;
@@ -30,17 +31,20 @@ public class InventorySettlementService {
     private final InventoryItemRepository inventoryItemRepository;
     private final InventoryReservationRepository reservationRepository;
     private final OutboxService outboxService;
+    private final InventoryAvailabilityOutboxService availabilityOutboxService;
 
     public InventorySettlementService(
         JdbcTemplate jdbcTemplate,
         InventoryItemRepository inventoryItemRepository,
         InventoryReservationRepository reservationRepository,
-        OutboxService outboxService
+        OutboxService outboxService,
+        InventoryAvailabilityOutboxService availabilityOutboxService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.inventoryItemRepository = inventoryItemRepository;
         this.reservationRepository = reservationRepository;
         this.outboxService = outboxService;
+        this.availabilityOutboxService = availabilityOutboxService;
     }
 
     @Transactional
@@ -126,6 +130,7 @@ public class InventorySettlementService {
             reservation.commit();
         } else {
             reservation.release();
+            availabilityOutboxService.enqueueAll(stockByProduct.values());
         }
 
         reservationRepository.saveAndFlush(reservation);

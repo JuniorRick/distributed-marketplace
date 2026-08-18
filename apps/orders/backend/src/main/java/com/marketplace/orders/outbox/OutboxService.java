@@ -1,4 +1,4 @@
-package com.marketplace.orders.messaging;
+package com.marketplace.orders.outbox;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;

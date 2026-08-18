@@ -1,5 +1,6 @@
 package com.marketplace.inventory.stock;
 
+import com.marketplace.inventory.cdc.outbox.InventoryAvailabilityOutboxService;
 import com.marketplace.inventory.stock.repository.InventoryItem;
 import com.marketplace.inventory.stock.repository.InventoryItemRepository;
 import java.util.UUID;
@@ -10,9 +11,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class StockService {
 
     private final InventoryItemRepository inventoryItemRepository;
+    private final InventoryAvailabilityOutboxService availabilityOutboxService;
 
-    public StockService(InventoryItemRepository inventoryItemRepository) {
+    public StockService(
+            InventoryItemRepository inventoryItemRepository,
+            InventoryAvailabilityOutboxService availabilityOutboxService
+    ) {
         this.inventoryItemRepository = inventoryItemRepository;
+        this.availabilityOutboxService = availabilityOutboxService;
     }
 
     @Transactional
@@ -20,6 +26,8 @@ public class StockService {
         InventoryItem item = inventoryItemRepository.findByProductId(productId)
                 .orElseGet(() -> new InventoryItem(productId, 0));
         item.replenish(quantity);
-        return inventoryItemRepository.save(item);
+        InventoryItem savedItem = inventoryItemRepository.save(item);
+        availabilityOutboxService.enqueue(savedItem);
+        return savedItem;
     }
 }

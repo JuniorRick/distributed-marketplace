@@ -7,7 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.marketplace.orders.inventory.InventoryMessagingConfiguration;
 import com.marketplace.orders.inventory.ReleaseInventoryCommand;
-import com.marketplace.orders.messaging.OutboxService;
+import com.marketplace.orders.outbox.OutboxService;
 import com.marketplace.orders.order.repository.Order;
 import com.marketplace.orders.order.repository.OrderRepository;
 import java.time.Instant;
