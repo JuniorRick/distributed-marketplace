@@ -25,9 +25,11 @@ spring:
     publisher-returns: true
     template:
       mandatory: true
+      observation-enabled: true
     listener:
       simple:
         default-requeue-rejected: false
+        observation-enabled: true
         retry:
           enabled: true
           initial-interval: 1s
@@ -51,8 +53,37 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
   endpoint:
     health:
       probes:
         enabled: true
+  tracing:
+    sampling:
+      probability: ${OTEL_TRACES_SAMPLER_ARG:1.0}
+  opentelemetry:
+    resource-attributes:
+      service.name: ${spring.application.name}
+      service.version: 1.0.0
+      deployment.environment.name: local
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+    logging:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:http://localhost:4318/v1/logs}
+  otlp:
+    metrics:
+      export:
+        enabled: true
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://localhost:4318/v1/metrics}
+        step: 5s
+logging:
+  level:
+    root: info
+    com.learningspringboot4: info
+  structured:
+    format:
+      console: logstash
