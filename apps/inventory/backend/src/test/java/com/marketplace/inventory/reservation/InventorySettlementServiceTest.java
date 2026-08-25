@@ -4,11 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.marketplace.inventory.messaging.OutboxService;
+import com.marketplace.inventory.cdc.outbox.InventoryAvailabilityOutboxService;
+import com.marketplace.inventory.outbox.OutboxService;
 import com.marketplace.inventory.reservation.messaging.CommitInventoryCommand;
 import com.marketplace.inventory.reservation.messaging.InventoryMessagingConfiguration;
 import com.marketplace.inventory.reservation.messaging.ReleaseInventoryCommand;
@@ -41,6 +44,9 @@ class InventorySettlementServiceTest {
     @Mock
     private OutboxService outboxService;
 
+    @Mock
+    private InventoryAvailabilityOutboxService availabilityOutboxService;
+
     @Test
     void commitsReservedStockAndPublishesCommittedEvent() {
         Fixture fixture = fixture();
@@ -53,6 +59,7 @@ class InventorySettlementServiceTest {
         assertThat(fixture.reservation().getStatus()).isEqualTo(ReservationStatus.COMMITTED);
         assertThat(fixture.stock().getAvailableQuantity()).isEqualTo(7);
         assertThat(fixture.stock().getReservedQuantity()).isZero();
+        verifyNoInteractions(availabilityOutboxService);
         verify(outboxService).enqueue(
             any(UUID.class),
             eq("InventoryCommittedEvent.v1"),
@@ -73,6 +80,9 @@ class InventorySettlementServiceTest {
         assertThat(fixture.reservation().getStatus()).isEqualTo(ReservationStatus.RELEASED);
         assertThat(fixture.stock().getAvailableQuantity()).isEqualTo(10);
         assertThat(fixture.stock().getReservedQuantity()).isZero();
+        verify(availabilityOutboxService).enqueueAll(argThat(
+                items -> items.size() == 1 && items.contains(fixture.stock())
+        ));
         verify(outboxService).enqueue(
             any(UUID.class),
             eq("InventoryReleasedEvent.v1"),
@@ -86,7 +96,8 @@ class InventorySettlementServiceTest {
             jdbcTemplate,
             inventoryItemRepository,
             reservationRepository,
-            outboxService
+            outboxService,
+            availabilityOutboxService
         );
     }
 

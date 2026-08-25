@@ -8,7 +8,9 @@ import org.springframework.test.context.DynamicPropertySource;
     "spring.datasource.hikari.schema=inventory",
     "spring.jpa.properties.hibernate.default_schema=inventory",
     "spring.rabbitmq.listener.simple.auto-startup=false",
-    "spring.rabbitmq.dynamic=false"
+    "spring.rabbitmq.dynamic=false",
+    "spring.kafka.admin.auto-create=false",
+    "marketplace.kafka.inventory-availability.outbox.initial-delay=1h"
 })
 public abstract class InventoryIntegrationTest {
 

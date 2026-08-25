@@ -1,4 +1,4 @@
-package com.marketplace.catalog.repository;
+package com.marketplace.catalog.product.repository;
 
 import com.marketplace.catalog.product.ProductStatus;
 import jakarta.persistence.Column;

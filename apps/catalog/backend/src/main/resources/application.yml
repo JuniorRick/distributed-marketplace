@@ -16,6 +16,15 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: inventory-availability-projection-v1
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+    listener:
+      ack-mode: record
+      observation-enabled: true
 
 catalog:
   cors:
@@ -25,8 +34,37 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
   endpoint:
     health:
       probes:
         enabled: true
+  tracing:
+    sampling:
+      probability: ${OTEL_TRACES_SAMPLER_ARG:1.0}
+  opentelemetry:
+    resource-attributes:
+      service.name: ${spring.application.name}
+      service.version: 1.0.0
+      deployment.environment.name: local
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+    logging:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:http://localhost:4318/v1/logs}
+  otlp:
+    metrics:
+      export:
+        enabled: true
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://localhost:4318/v1/metrics}
+        step: 5s
+logging:
+  level:
+    root: info
+    com.learningspringboot4: info
+  structured:
+    format:
+      console: logstash

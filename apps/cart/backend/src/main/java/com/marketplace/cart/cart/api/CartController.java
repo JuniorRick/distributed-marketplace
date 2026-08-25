@@ -4,6 +4,8 @@ import com.marketplace.cart.cart.CartService;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +22,7 @@ public class CartController {
 
     private final CartApiMapper cartApiMapper;
     private final CartService cartService;
+    private final Logger log = LoggerFactory.getLogger(CartController.class);
 
     public CartController(CartApiMapper cartApiMapper, CartService cartService) {
         this.cartApiMapper = cartApiMapper;
@@ -28,6 +31,7 @@ public class CartController {
 
     @GetMapping("/{id}")
     public ResponseEntity<CartResponse> getCart(@PathVariable UUID id) {
+        log.info("GET /api/carts/{}", id);
         var cart = cartService.getByUuid(id);
         return ResponseEntity.ok(cartApiMapper.toResponse(cart));
     }

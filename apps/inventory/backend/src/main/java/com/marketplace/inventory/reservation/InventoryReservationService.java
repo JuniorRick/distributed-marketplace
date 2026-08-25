@@ -1,6 +1,7 @@
 package com.marketplace.inventory.reservation;
 
-import com.marketplace.inventory.messaging.OutboxService;
+import com.marketplace.inventory.cdc.outbox.InventoryAvailabilityOutboxService;
+import com.marketplace.inventory.outbox.OutboxService;
 import com.marketplace.inventory.reservation.messaging.InventoryMessagingConfiguration;
 import com.marketplace.inventory.reservation.messaging.InventoryReservationResult;
 import com.marketplace.inventory.reservation.messaging.ReserveInventoryCommand;
@@ -11,7 +12,6 @@ import com.marketplace.inventory.stock.repository.InventoryItem;
 import com.marketplace.inventory.stock.repository.InventoryItemRepository;
 import java.time.Instant;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -31,17 +31,20 @@ public class InventoryReservationService {
     private final InventoryItemRepository inventoryItemRepository;
     private final InventoryReservationRepository reservationRepository;
     private final OutboxService outboxService;
+    private final InventoryAvailabilityOutboxService availabilityOutboxService;
 
     public InventoryReservationService(
             JdbcTemplate jdbcTemplate,
             InventoryItemRepository inventoryItemRepository,
             InventoryReservationRepository reservationRepository,
-            OutboxService outboxService
+            OutboxService outboxService,
+            InventoryAvailabilityOutboxService availabilityOutboxService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.inventoryItemRepository = inventoryItemRepository;
         this.reservationRepository = reservationRepository;
         this.outboxService = outboxService;
+        this.availabilityOutboxService = availabilityOutboxService;
     }
 
     @Transactional
@@ -70,6 +73,7 @@ public class InventoryReservationService {
             command.items().stream()
                     .sorted(Comparator.comparing(item -> item.productId().toString()))
                     .forEach(item -> stockByProduct.get(item.productId()).reserve(item.quantity()));
+            availabilityOutboxService.enqueueAll(stockByProduct.values());
             reservation.markReserved();
         } else {
             reservation.reject(rejectionReason);

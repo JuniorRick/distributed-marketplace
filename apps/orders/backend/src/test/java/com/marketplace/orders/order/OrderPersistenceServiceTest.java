@@ -14,7 +14,7 @@ import com.marketplace.orders.inventory.InventoryResultListener.InventoryReserva
 import com.marketplace.orders.inventory.CommitInventoryCommand;
 import com.marketplace.orders.inventory.ReleaseInventoryCommand;
 import com.marketplace.orders.inventory.ReserveInventoryCommand;
-import com.marketplace.orders.messaging.OutboxService;
+import com.marketplace.orders.outbox.OutboxService;
 import com.marketplace.orders.order.repository.Order;
 import com.marketplace.orders.order.repository.OrderRepository;
 import com.marketplace.orders.payment.CapturePaymentCommand;

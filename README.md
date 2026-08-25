@@ -61,9 +61,16 @@ docker compose up --build catalog-backend
 
 Follow logs for the complete stack:
 
+
 ```shell
 docker compose logs --follow
 ```
+
+restart container, e.g. restart otel-collector
+```shell
+docker-compose up -d --force-recreate otel-collector
+```
+
 
 Default URLs:
 

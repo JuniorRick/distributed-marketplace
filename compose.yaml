@@ -10,7 +10,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-5433}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U marketplace -d marketplace"]
+      test: [ "CMD-SHELL", "pg_isready -U marketplace -d marketplace" ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -46,12 +46,55 @@ services:
       - "${RABBITMQ_PORT:-5672}:5672"
       - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 5s
       timeout: 5s
       retries: 12
     volumes:
       - marketplace-rabbitmq-data:/var/lib/rabbitmq
+
+  kafka:
+    image: apache/kafka:4.1.1
+    hostname: kafka
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      KAFKA_LISTENERS: >-
+        INTERNAL://:29092,
+        EXTERNAL://:9092,
+        CONTROLLER://:29093
+
+      KAFKA_ADVERTISED_LISTENERS: >-
+        INTERNAL://kafka:29092,
+        EXTERNAL://${KAFKA_ADVERTISED_HOST:-localhost}:${KAFKA_PORT:-9092}
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: >-
+        INTERNAL:PLAINTEXT,
+        EXTERNAL:PLAINTEXT,
+        CONTROLLER:PLAINTEXT
+
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+    volumes:
+      - marketplace-kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:29092 --list
+      interval: 10s
+      timeout: 10s
+      retries: 12
 
   catalog-backend:
     image: distributed-marketplace-catalog-backend
@@ -64,6 +107,13 @@ services:
       CATALOG_DB_URL: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=catalog
       CATALOG_DB_USER: marketplace
       CATALOG_DB_PASSWORD: marketplace
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      OTEL_SERVICE_NAME: catalog
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
+      OTEL_TRACES_SAMPLER_ARG: "1.0"
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=local,service.version=0.0.1-SNAPSHOT
     ports:
       - "${CATALOG_API_PORT:-8081}:8081"
     depends_on:
@@ -71,6 +121,8 @@ services:
         condition: service_healthy
       marketplace-db-init:
         condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
 
   cart-backend:
     image: distributed-marketplace-cart-backend
@@ -87,6 +139,12 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: marketplace
       RABBITMQ_PASSWORD: marketplace
+      OTEL_SERVICE_NAME: cart
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
+      OTEL_TRACES_SAMPLER_ARG: "1.0"
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=local,service.version=0.0.1-SNAPSHOT
     ports:
       - "${CART_API_PORT:-8082}:8082"
     depends_on:
@@ -118,6 +176,12 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: marketplace
       RABBITMQ_PASSWORD: marketplace
+      OTEL_SERVICE_NAME: orders
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
+      OTEL_TRACES_SAMPLER_ARG: "1.0"
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=local,service.version=0.0.1-SNAPSHOT
     ports:
       - "${ORDERS_API_PORT:-8083}:8083"
     depends_on:
@@ -141,9 +205,16 @@ services:
       INVENTORY_DB_URL: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=inventory
       INVENTORY_DB_USER: marketplace
       INVENTORY_DB_PASSWORD: marketplace
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: marketplace
       RABBITMQ_PASSWORD: marketplace
+      OTEL_SERVICE_NAME: inventory
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
+      OTEL_TRACES_SAMPLER_ARG: "1.0"
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=local,service.version=0.0.1-SNAPSHOT
     ports:
       - "${INVENTORY_API_PORT:-8084}:8084"
     depends_on:
@@ -152,6 +223,8 @@ services:
       marketplace-db-init:
         condition: service_completed_successfully
       rabbitmq:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
 
   payments-backend:
@@ -170,6 +243,12 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: marketplace
       RABBITMQ_PASSWORD: marketplace
+      OTEL_SERVICE_NAME: payments
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
+      OTEL_TRACES_SAMPLER_ARG: "1.0"
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=local,service.version=0.0.1-SNAPSHOT
     ports:
       - "${PAYMENTS_API_PORT:-8085}:8085"
     depends_on:
@@ -223,6 +302,49 @@ services:
       orders-backend:
         condition: service_started
 
+  loki:
+    image: grafana/loki:3.4.1
+    container_name: loki
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports:
+      - "3100:3100"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.116.1
+    container_name: otel-collector
+    command: ["--config=/etc/otelcol/config.yml"]
+    volumes:
+      - ./infra/observability/otel-collector.yaml:/etc/otelcol/config.yml:ro
+    ports:
+      - "4318:4318"
+    depends_on:
+      - loki
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./infra/observability/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    depends_on:
+      - loki
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: ch13-prometheus
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./infra/observability/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - otel-collector
+
 volumes:
   marketplace-db-data:
   marketplace-rabbitmq-data:
+  marketplace-kafka-data:

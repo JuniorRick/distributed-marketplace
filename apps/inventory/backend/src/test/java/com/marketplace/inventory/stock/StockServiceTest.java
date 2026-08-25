@@ -1,8 +1,10 @@
 package com.marketplace.inventory.stock;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.marketplace.inventory.cdc.outbox.InventoryAvailabilityOutboxService;
 import com.marketplace.inventory.stock.repository.InventoryItem;
 import com.marketplace.inventory.stock.repository.InventoryItemRepository;
 import java.util.Optional;
@@ -19,6 +21,9 @@ class StockServiceTest {
     @Mock
     private InventoryItemRepository inventoryItemRepository;
 
+    @Mock
+    private InventoryAvailabilityOutboxService availabilityOutboxService;
+
     @InjectMocks
     private StockService stockService;
 
@@ -34,5 +39,6 @@ class StockServiceTest {
         assertThat(result.getProductId()).isEqualTo(productId);
         assertThat(result.getAvailableQuantity()).isEqualTo(20);
         assertThat(result.getReservedQuantity()).isZero();
+        verify(availabilityOutboxService).enqueue(result);
     }
 }

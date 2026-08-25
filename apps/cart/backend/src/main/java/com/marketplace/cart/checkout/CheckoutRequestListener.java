@@ -3,7 +3,7 @@ package com.marketplace.cart.checkout;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import com.marketplace.cart.cart.CartService;
-import com.marketplace.cart.messaging.OutboxService;
+import com.marketplace.cart.outbox.OutboxService;
 import com.marketplace.cart.shared.ConflictException;
 import com.marketplace.cart.shared.NotFoundException;
 import java.time.Instant;

@@ -74,18 +74,24 @@ public class OutboxPublisher {
 
     private List<OutboxRecord> claimBatch() {
         return jdbcTemplate.query("""
-                UPDATE event_outbox
-                SET locked_at = now()
-                WHERE event_id IN (
+                WITH claimed AS (
                     SELECT event_id
                     FROM event_outbox
                     WHERE published_at IS NULL
                       AND (locked_at IS NULL OR locked_at < now() - interval '30 seconds')
-                    ORDER BY occurred_at
+                    ORDER BY occurred_at, event_id
                     FOR UPDATE SKIP LOCKED
                     LIMIT 100
+                ), updated AS (
+                    UPDATE event_outbox AS outbox
+                    SET locked_at = now()
+                    FROM claimed
+                    WHERE outbox.event_id = claimed.event_id
+                    RETURNING outbox.event_id, outbox.routing_key, outbox.payload, outbox.occurred_at
                 )
-                RETURNING event_id, routing_key, payload
+                SELECT event_id, routing_key, payload
+                FROM updated
+                ORDER BY occurred_at, event_id
                 """, (resultSet, rowNumber) -> new OutboxRecord(
                 resultSet.getObject("event_id", UUID.class),
                 resultSet.getString("routing_key"),

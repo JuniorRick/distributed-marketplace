@@ -1,16 +1,17 @@
-package com.marketplace.orders.messaging;
+package com.marketplace.inventory.outbox;
 
+import com.marketplace.inventory.reservation.messaging.InventoryMessagingConfiguration;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 @Component
 public class OutboxPublisher {
@@ -50,7 +51,7 @@ public class OutboxPublisher {
     private void publish(OutboxRecord event) {
         CorrelationData correlation = new CorrelationData(event.eventId().toString());
         rabbitTemplate.convertAndSend(
-                event.exchangeName(),
+                InventoryMessagingConfiguration.EXCHANGE,
                 event.routingKey(),
                 event.payload(),
                 correlation
@@ -73,21 +74,26 @@ public class OutboxPublisher {
 
     private List<OutboxRecord> claimBatch() {
         return jdbcTemplate.query("""
-                UPDATE event_outbox
-                SET locked_at = now()
-                WHERE event_id IN (
+                WITH claimed AS (
                     SELECT event_id
                     FROM event_outbox
                     WHERE published_at IS NULL
                       AND (locked_at IS NULL OR locked_at < now() - interval '30 seconds')
-                    ORDER BY occurred_at
+                    ORDER BY occurred_at, event_id
                     FOR UPDATE SKIP LOCKED
                     LIMIT 100
+                ), updated AS (
+                    UPDATE event_outbox AS outbox
+                    SET locked_at = now()
+                    FROM claimed
+                    WHERE outbox.event_id = claimed.event_id
+                    RETURNING outbox.event_id, outbox.routing_key, outbox.payload, outbox.occurred_at
                 )
-                RETURNING event_id, exchange_name, routing_key, payload
+                SELECT event_id, routing_key, payload
+                FROM updated
+                ORDER BY occurred_at, event_id
                 """, (resultSet, rowNumber) -> new OutboxRecord(
                 resultSet.getObject("event_id", UUID.class),
-                resultSet.getString("exchange_name"),
                 resultSet.getString("routing_key"),
                 resultSet.getString("payload")
         ));
@@ -100,11 +106,6 @@ public class OutboxPublisher {
         return message.substring(0, Math.min(message.length(), 500));
     }
 
-    private record OutboxRecord(
-            UUID eventId,
-            String exchangeName,
-            String routingKey,
-            String payload
-    ) {
+    private record OutboxRecord(UUID eventId, String routingKey, String payload) {
     }
 }
