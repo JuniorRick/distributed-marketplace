@@ -10,4 +10,5 @@ export type Product = {
   description: string;
   price: Money;
   status: 'ACTIVE' | 'ARCHIVED';
+  quantity: number;
 };

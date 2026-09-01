@@ -10,6 +10,7 @@ const product: Product = {
   description: 'Compact keyboard with tactile switches',
   price: { amount: 129.99, currency: 'USD' },
   status: 'ACTIVE',
+  quantity: 1
 };
 
 describe('ProductCard', () => {
@@ -19,6 +20,7 @@ describe('ProductCard', () => {
     expect(screen.getByRole('heading', { name: product.name })).toBeInTheDocument();
     expect(screen.getByText(product.sku)).toBeInTheDocument();
     expect(screen.getByText('$129.99')).toBeInTheDocument();
+    expect(screen.getByText('qty: 1')).toBeInTheDocument();
   });
 
   it('adds the selected product to the cart', () => {

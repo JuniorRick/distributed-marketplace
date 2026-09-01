@@ -19,6 +19,7 @@ export function ProductCard({ product, isAdding, onAddToCart }: ProductCardProps
       <p>{product.description}</p>
       <div className="product-card__footer">
         <strong>{formatProductPrice(product)}</strong>
+        <span>{`qty: ${product.quantity}`}</span>
         <button
           className="icon-button"
           type="button"

@@ -11,6 +11,7 @@ import java.util.UUID;
 public class InventoryAvailability {
 
     @Id
+    @Column(name = "product_id", nullable = false)
     private UUID productId;
 
     @Column(nullable = false)
