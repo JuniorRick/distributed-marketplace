@@ -5,6 +5,7 @@ import com.marketplace.catalog.product.api.MoneyResponse;
 import com.marketplace.catalog.product.api.ProductResponse;
 import com.marketplace.catalog.product.repository.Product;
 import com.marketplace.catalog.product.repository.ProductRepository;
+import com.marketplace.catalog.product.repository.ProductWithAvailability;
 import com.marketplace.catalog.shared.ConflictException;
 import com.marketplace.catalog.shared.NotFoundException;
 import java.util.List;
@@ -24,17 +25,17 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public List<ProductResponse> listActiveProducts() {
-        return productRepository.findByStatusOrderByNameAsc(ProductStatus.ACTIVE)
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        return productRepository.findWithAvailability(ProductStatus.ACTIVE)
+            .stream()
+            .map(this::toResponse)
+            .toList();
     }
 
     @Transactional(readOnly = true)
     public ProductResponse getProduct(UUID id) {
-        return productRepository.findByPublicId(id)
-                .map(this::toResponse)
-                .orElseThrow(() -> new NotFoundException("Product %s was not found".formatted(id)));
+        return productRepository.findWithAvailabilityByPublicId(id)
+            .map(this::toResponse)
+            .orElseThrow(() -> new NotFoundException("Product %s was not found".formatted(id)));
     }
 
     @Transactional
@@ -45,24 +46,37 @@ public class ProductService {
         }
 
         Product product = Product.active(
-                normalizedSku,
-                request.name().trim(),
-                request.description().trim(),
-                request.priceAmount(),
-                request.currency().trim().toUpperCase(Locale.ROOT)
+            normalizedSku,
+            request.name().trim(),
+            request.description().trim(),
+            request.priceAmount(),
+            request.currency().trim().toUpperCase(Locale.ROOT)
         );
 
         return toResponse(productRepository.save(product));
     }
 
+    private ProductResponse toResponse(ProductWithAvailability product) {
+        return new ProductResponse(
+            product.id(),
+            product.sku(),
+            product.name(),
+            product.description(),
+            new MoneyResponse(product.priceAmount(), product.currency()),
+            product.status().name(),
+            product.availableQuantity()
+        );
+    }
+
     private ProductResponse toResponse(Product product) {
         return new ProductResponse(
-                product.getPublicId(),
-                product.getSku(),
-                product.getName(),
-                product.getDescription(),
-                new MoneyResponse(product.getPriceAmount(), product.getCurrency()),
-                product.getStatus().name()
+            product.getPublicId(),
+            product.getSku(),
+            product.getName(),
+            product.getDescription(),
+            new MoneyResponse(product.getPriceAmount(), product.getCurrency()),
+            product.getStatus().name(),
+            0
         );
     }
 }

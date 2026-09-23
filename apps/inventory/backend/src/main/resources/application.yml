@@ -84,7 +84,6 @@ management:
 logging:
   level:
     root: info
-    com.learningspringboot4: info
   structured:
     format:
       console: logstash

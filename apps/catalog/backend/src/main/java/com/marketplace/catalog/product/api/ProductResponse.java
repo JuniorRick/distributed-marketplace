@@ -8,6 +8,7 @@ public record ProductResponse(
         String name,
         String description,
         MoneyResponse price,
-        String status
+        String status,
+        Integer quantity
 ) {
 }
