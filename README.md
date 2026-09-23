@@ -130,6 +130,22 @@ Outbox delivery is at-least-once. Consumer inbox tables make duplicate events ha
 
 RabbitMQ management is available at `http://localhost:15672` using `marketplace` for both username and password.
 
+## End-to-End Tests
+
+The `marketplace-e2e` Maven module owns an isolated Docker Compose environment. It allocates dynamic host ports,
+builds and starts the five backends and their infrastructure, runs the checkout scenarios, and removes the containers
+and volumes afterward.
+
+Run the successful-checkout scenario from the repository root:
+
+```shell
+mvn --projects marketplace-e2e verify
+```
+
+Docker with either `docker compose` or `docker-compose` must be available. Set `E2E_KEEP_ENVIRONMENT=true` to keep
+the environment running after a test for investigation. The Compose project name and allocated API ports are printed
+at startup.
+
 ## Shared Frontend Styles
 
 Reusable UI tokens, base styles, and layout primitives live in `packages/marketplace-ui`.
