@@ -12,6 +12,8 @@ import com.marketplace.orders.inventory.ReserveInventoryCommand;
 import com.marketplace.orders.outbox.OutboxService;
 import com.marketplace.orders.order.repository.Order;
 import com.marketplace.orders.order.repository.OrderRepository;
+import com.marketplace.orders.order.messaging.OrderLifecycleEvent;
+import com.marketplace.orders.order.messaging.OrderLifecycleMessagingConfiguration;
 import com.marketplace.orders.payment.CapturePaymentCommand;
 import com.marketplace.orders.payment.PaymentMessagingConfiguration;
 import com.marketplace.orders.payment.PaymentResultListener.PaymentResult;
@@ -88,6 +90,7 @@ public class OrderPersistenceService {
             requestInventory(order);
         } else {
             order.reject(event.reason());
+            enqueueOrderLifecycleEvent(order);
         }
         orderRepository.save(order);
     }
@@ -108,16 +111,21 @@ public class OrderPersistenceService {
         Order order = findOrder(event.orderId());
         switch (event.outcome()) {
             case "RESERVED" -> requestPayment(order);
-            case "REJECTED" -> order.reject(event.reason());
+            case "REJECTED" -> {
+                order.reject(event.reason());
+                enqueueOrderLifecycleEvent(order);
+            }
             case "COMMITTED" -> {
                 if (order.getStatus() == OrderStatus.INVENTORY_COMMIT_PENDING
                     || order.getStatus() == OrderStatus.INVENTORY_RELEASE_FOR_REFUND_PENDING) {
                     order.confirm();
+                    enqueueOrderLifecycleEvent(order);
                 }
             }
             case "RELEASED" -> {
                 if (order.getStatus() == OrderStatus.INVENTORY_RELEASE_PENDING) {
                     order.rejectAfterInventoryRelease();
+                    enqueueOrderLifecycleEvent(order);
                 } else if (order.getStatus() == OrderStatus.INVENTORY_RELEASE_FOR_REFUND_PENDING) {
                     requestRefund(order, order.getFailureReason());
                 }
@@ -149,7 +157,10 @@ public class OrderPersistenceService {
         switch (event.outcome()) {
             case "CAPTURED" -> requestInventoryCommit(order);
             case "FAILED" -> requestInventoryRelease(order, event.reason());
-            case "REFUNDED" -> order.markRefunded();
+            case "REFUNDED" -> {
+                order.markRefunded();
+                enqueueOrderLifecycleEvent(order);
+            }
             case "REFUND_FAILED" -> order.recordRefundFailure(event.reason());
             default -> throw new IllegalArgumentException("Unknown payment outcome: " + event.outcome());
         }
@@ -295,6 +306,43 @@ public class OrderPersistenceService {
         outboxService.enqueue(
             command.eventId(), "RefundPaymentCommand.v1", PaymentMessagingConfiguration.EXCHANGE,
             PaymentMessagingConfiguration.REFUND_PAYMENT_COMMAND_ROUTING_KEY, command
+        );
+    }
+
+    private void enqueueOrderLifecycleEvent(Order order) {
+        String eventType;
+        String routingKey;
+        switch (order.getStatus()) {
+            case CONFIRMED -> {
+                eventType = "OrderConfirmedEvent.v1";
+                routingKey = OrderLifecycleMessagingConfiguration.ORDER_CONFIRMED_EVENT_ROUTING_KEY;
+            }
+            case REJECTED -> {
+                eventType = "OrderRejectedEvent.v1";
+                routingKey = OrderLifecycleMessagingConfiguration.ORDER_REJECTED_EVENT_ROUTING_KEY;
+            }
+            case REFUNDED -> {
+                eventType = "OrderRefundedEvent.v1";
+                routingKey = OrderLifecycleMessagingConfiguration.ORDER_REFUNDED_EVENT_ROUTING_KEY;
+            }
+            default -> throw new IllegalStateException(
+                "Order lifecycle events require a terminal status: " + order.getStatus()
+            );
+        }
+
+        OrderLifecycleEvent event = new OrderLifecycleEvent(
+            UUID.randomUUID(),
+            order.getPublicId(),
+            order.getCustomerId(),
+            order.getStatus().name(),
+            order.getTotalAmount(),
+            order.getCurrency(),
+            order.getFailureReason(),
+            Instant.now()
+        );
+        outboxService.enqueue(
+            event.eventId(), eventType, OrderLifecycleMessagingConfiguration.EXCHANGE,
+            routingKey, event
         );
     }
 

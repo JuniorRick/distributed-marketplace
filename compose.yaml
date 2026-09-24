@@ -32,7 +32,7 @@ services:
       - -v
       - ON_ERROR_STOP=1
       - -c
-      - CREATE SCHEMA IF NOT EXISTS catalog; CREATE SCHEMA IF NOT EXISTS cart; CREATE SCHEMA IF NOT EXISTS orders; CREATE SCHEMA IF NOT EXISTS inventory; CREATE SCHEMA IF NOT EXISTS payments;
+      - CREATE SCHEMA IF NOT EXISTS catalog; CREATE SCHEMA IF NOT EXISTS cart; CREATE SCHEMA IF NOT EXISTS orders; CREATE SCHEMA IF NOT EXISTS inventory; CREATE SCHEMA IF NOT EXISTS payments; CREATE SCHEMA IF NOT EXISTS notifications;
     depends_on:
       marketplace-db:
         condition: service_healthy
@@ -251,6 +251,36 @@ services:
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=local,service.version=0.0.1-SNAPSHOT
     ports:
       - "${PAYMENTS_API_PORT:-8085}:8085"
+    depends_on:
+      marketplace-db:
+        condition: service_healthy
+      marketplace-db-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+
+  notifications-backend:
+    image: distributed-marketplace-notifications-backend
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      args:
+        SERVICE: notifications
+    environment:
+      NOTIFICATIONS_DB_URL: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=notifications
+      NOTIFICATIONS_DB_USER: marketplace
+      NOTIFICATIONS_DB_PASSWORD: marketplace
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: marketplace
+      RABBITMQ_PASSWORD: marketplace
+      OTEL_SERVICE_NAME: notifications
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
+      OTEL_TRACES_SAMPLER_ARG: "1.0"
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=local,service.version=0.0.1-SNAPSHOT
+    ports:
+      - "${NOTIFICATIONS_API_PORT:-8086}:8086"
     depends_on:
       marketplace-db:
         condition: service_healthy
