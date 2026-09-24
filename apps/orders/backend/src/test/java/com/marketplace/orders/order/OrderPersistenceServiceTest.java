@@ -17,6 +17,8 @@ import com.marketplace.orders.inventory.ReserveInventoryCommand;
 import com.marketplace.orders.outbox.OutboxService;
 import com.marketplace.orders.order.repository.Order;
 import com.marketplace.orders.order.repository.OrderRepository;
+import com.marketplace.orders.order.messaging.OrderLifecycleEvent;
+import com.marketplace.orders.order.messaging.OrderLifecycleMessagingConfiguration;
 import com.marketplace.orders.payment.CapturePaymentCommand;
 import com.marketplace.orders.payment.PaymentMessagingConfiguration;
 import com.marketplace.orders.payment.PaymentResultListener.PaymentResult;
@@ -169,6 +171,13 @@ class OrderPersistenceServiceTest {
         applyInventoryResult(order, "COMMITTED", null);
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        verify(outboxService).enqueue(
+            any(UUID.class),
+            eq("OrderConfirmedEvent.v1"),
+            eq(OrderLifecycleMessagingConfiguration.EXCHANGE),
+            eq(OrderLifecycleMessagingConfiguration.ORDER_CONFIRMED_EVENT_ROUTING_KEY),
+            any(OrderLifecycleEvent.class)
+        );
     }
 
     @Test
@@ -180,6 +189,13 @@ class OrderPersistenceServiceTest {
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.REJECTED);
         assertThat(order.getFailureReason()).isEqualTo("declined");
+        verify(outboxService).enqueue(
+            any(UUID.class),
+            eq("OrderRejectedEvent.v1"),
+            eq(OrderLifecycleMessagingConfiguration.EXCHANGE),
+            eq(OrderLifecycleMessagingConfiguration.ORDER_REJECTED_EVENT_ROUTING_KEY),
+            any(OrderLifecycleEvent.class)
+        );
     }
 
     @Test
@@ -206,6 +222,13 @@ class OrderPersistenceServiceTest {
         service.applyPaymentResult(paymentResult(eventId, order, "REFUNDED", null));
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDED);
+        verify(outboxService).enqueue(
+            any(UUID.class),
+            eq("OrderRefundedEvent.v1"),
+            eq(OrderLifecycleMessagingConfiguration.EXCHANGE),
+            eq(OrderLifecycleMessagingConfiguration.ORDER_REFUNDED_EVENT_ROUTING_KEY),
+            any(OrderLifecycleEvent.class)
+        );
     }
 
     @Test

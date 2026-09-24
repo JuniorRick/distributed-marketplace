@@ -1,0 +1,78 @@
+server:
+  port: ${PORT:8086}
+
+spring:
+  application:
+    name: notifications
+  datasource:
+    url: ${NOTIFICATIONS_DB_URL:jdbc:postgresql://localhost:5433/marketplace?currentSchema=notifications}
+    username: ${NOTIFICATIONS_DB_USER:marketplace}
+    password: ${NOTIFICATIONS_DB_PASSWORD:marketplace}
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    default-schema: notifications
+    liquibase-schema: notifications
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:marketplace}
+    password: ${RABBITMQ_PASSWORD:marketplace}
+    listener:
+      simple:
+        default-requeue-rejected: false
+        observation-enabled: true
+        retry:
+          enabled: true
+          initial-interval: 1s
+          multiplier: 2
+          max-retries: 5
+
+marketplace:
+  notifications:
+    initial-delay: ${NOTIFICATION_INITIAL_DELAY:1s}
+    fixed-delay: ${NOTIFICATION_FIXED_DELAY:1s}
+    retry-delay: ${NOTIFICATION_RETRY_DELAY:10s}
+    max-attempts: ${NOTIFICATION_MAX_ATTEMPTS:5}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: ${OTEL_TRACES_SAMPLER_ARG:1.0}
+  opentelemetry:
+    resource-attributes:
+      service.name: ${spring.application.name}
+      service.version: 1.0.0
+      deployment.environment.name: local
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+    logging:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:http://localhost:4318/v1/logs}
+  otlp:
+    metrics:
+      export:
+        enabled: true
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://localhost:4318/v1/metrics}
+        step: 5s
+
+logging:
+  level:
+    root: info
+  structured:
+    format:
+      console: logstash
