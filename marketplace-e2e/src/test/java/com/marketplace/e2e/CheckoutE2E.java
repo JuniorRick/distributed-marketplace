@@ -174,4 +174,39 @@ class CheckoutE2E {
         }
     }
 
+    @Test
+    void checkoutRecoversAfterRabbitMqRestart() {
+        try {
+            environment.restartPayments("CAPTURED", "REFUNDED");
+
+            UUID productId = marketplace.createProduct("E2E-" + UUID.randomUUID());
+            marketplace.replenish(productId, 2);
+
+            UUID customerId = UUID.randomUUID();
+            UUID cartId = marketplace.createCart(customerId);
+            marketplace.addCartItem(cartId, productId, 1);
+
+            JsonNode createdOrder;
+            environment.stopRabbitMq();
+            try {
+                createdOrder = marketplace.createOrder(cartId);
+            } finally {
+                environment.startRabbitMq();
+            }
+
+            UUID orderId = UUID.fromString(createdOrder.get("id").asString());
+            Awaitility.await("outbox delivery to recover after RabbitMQ restarts")
+                .atMost(Duration.ofSeconds(90))
+                .pollInterval(Duration.ofSeconds(1))
+                .untilAsserted(() -> {
+                    JsonNode order = marketplace.getOrder(orderId);
+                    assertThat(order.get("status").asString()).isEqualTo("CONFIRMED");
+                    assertThat(order.get("sourceCartId").asString()).isEqualTo(cartId.toString());
+                });
+        } catch (RuntimeException | AssertionError exception) {
+            failed = true;
+            throw exception;
+        }
+    }
+
 }

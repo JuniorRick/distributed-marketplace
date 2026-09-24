@@ -113,6 +113,14 @@ final class ComposeEnvironment implements AutoCloseable {
         paymentRefundOutcome = refundOutcome;
     }
 
+    void stopRabbitMq() {
+        run(List.of("stop", "rabbitmq"), Duration.ofMinutes(1), true);
+    }
+
+    void startRabbitMq() {
+        run(List.of("up", "--detach", "--no-deps", "--wait", "rabbitmq"), Duration.ofMinutes(2), true);
+    }
+
     void captureLogs() {
         if (logsCaptured) {
             return;
