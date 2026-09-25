@@ -47,6 +47,21 @@ final class MarketplaceApi {
         );
     }
 
+    UUID createCustomer() {
+        String unique = UUID.randomUUID().toString();
+        JsonNode response = post(
+                environment.apiUri("customers", "/api/customers"),
+                Map.of(
+                        "email", "e2e-" + unique + "@example.com",
+                        "phone", "+40123456789",
+                        "emailNotificationsEnabled", true,
+                        "smsNotificationsEnabled", false
+                ),
+                201
+        );
+        return UUID.fromString(response.get("id").asText());
+    }
+
     UUID createCart(UUID customerId) {
         JsonNode response = post(
                 environment.apiUri("cart", "/api/carts"),

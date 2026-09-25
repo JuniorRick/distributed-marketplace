@@ -23,6 +23,7 @@
         <module>apps/inventory/backend</module>
         <module>apps/payments/backend</module>
         <module>apps/notifications/backend</module>
+        <module>apps/customers/backend</module>
         <module>marketplace-e2e</module>
     </modules>
 </project>
