@@ -10,6 +10,7 @@ Current systems:
 - `apps/inventory`: stock balances and order reservation SCS
 - `apps/payments`: payment capture and payment history SCS
 - `apps/notifications`: order lifecycle notification SCS
+- `apps/customers`: customer contact and notification preference SCS
 
 ## Catalog System
 
@@ -36,7 +37,7 @@ Start the complete marketplace from the repository root:
 docker compose up --build
 ```
 
-Compose builds and starts PostgreSQL, the six Spring Boot backends, and the three Nginx-served React frontends. The containers communicate through the internal Compose network, so no Java, Maven, Node.js, or npm installation is required on the host.
+Compose builds and starts PostgreSQL, the seven Spring Boot backends, and the three Nginx-served React frontends. The containers communicate through the internal Compose network, so no Java, Maven, Node.js, or npm installation is required on the host.
 
 Stop the stack while preserving PostgreSQL data:
 
@@ -83,6 +84,7 @@ Default URLs:
 - Payment by order: `http://localhost:8085/api/payments/by-order/{orderId}`
 - Notifications health: `http://localhost:8086/actuator/health`
 - Customer notifications: `http://localhost:8086/api/notifications/by-customer/{customerId}`
+- Customers API: `http://localhost:8087/api/customers`
 
 ## Event-Driven Checkout
 
@@ -111,7 +113,9 @@ retries move it to `MANUAL_REVIEW`.
 
 Orders publishes confirmed, rejected, and refunded lifecycle events from the same transaction that completes the
 state transition. Notifications consumes those events through one durable queue, records them idempotently, and
-delivers them asynchronously through a simulated sender.
+delivers them asynchronously through a simulated sender. Customers publishes versioned contact and preference
+events through its transactional outbox. Notifications maintains a local, idempotent recipient projection and uses
+that projection for delivery without synchronously calling Customers.
 
 The Orders reconciliation scheduler scans stale non-terminal phases, republishes their commands, and increments
 `reconciliation_attempts`. Its defaults are a one-minute stale threshold, a 30-second scan interval, and five
@@ -136,7 +140,7 @@ RabbitMQ management is available at `http://localhost:15672` using `marketplace`
 ## End-to-End Tests
 
 The `marketplace-e2e` Maven module owns an isolated Docker Compose environment. It allocates dynamic host ports,
-builds and starts the six backends and their infrastructure, runs the checkout scenarios, and removes the containers
+builds and starts the seven backends and their infrastructure, runs the checkout scenarios, and removes the containers
 and volumes afterward.
 
 Run the successful-checkout scenario from the repository root:

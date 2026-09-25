@@ -53,7 +53,7 @@ class CheckoutE2E {
             UUID productId = marketplace.createProduct("E2E-" + UUID.randomUUID());
             marketplace.replenish(productId, 5);
 
-            UUID customerId = UUID.randomUUID();
+            UUID customerId = marketplace.createCustomer();
             UUID cartId = marketplace.createCart(customerId);
             marketplace.addCartItem(cartId, productId, 2);
 
@@ -85,7 +85,7 @@ class CheckoutE2E {
             UUID productId = marketplace.createProduct("E2E-" + UUID.randomUUID());
             marketplace.replenish(productId, 1);
 
-            UUID customerId = UUID.randomUUID();
+            UUID customerId = marketplace.createCustomer();
             UUID cartId = marketplace.createCart(customerId);
             marketplace.addCartItem(cartId, productId, 2);
 
@@ -117,7 +117,7 @@ class CheckoutE2E {
             UUID productId = marketplace.createProduct("E2E-" + UUID.randomUUID());
             marketplace.replenish(productId, 1);
 
-            UUID customerId = UUID.randomUUID();
+            UUID customerId = marketplace.createCustomer();
             UUID cartId = marketplace.createCart(customerId);
             marketplace.addCartItem(cartId, productId, 1);
 
@@ -150,7 +150,7 @@ class CheckoutE2E {
             UUID productId = marketplace.createProduct("E2E-" + UUID.randomUUID());
             marketplace.replenish(productId, 2);
 
-            UUID customerId = UUID.randomUUID();
+            UUID customerId = marketplace.createCustomer();
             UUID cartId = marketplace.createCart(customerId);
             marketplace.addCartItem(cartId, productId, 1);
 
@@ -182,7 +182,7 @@ class CheckoutE2E {
             UUID productId = marketplace.createProduct("E2E-" + UUID.randomUUID());
             marketplace.replenish(productId, 2);
 
-            UUID customerId = UUID.randomUUID();
+            UUID customerId = marketplace.createCustomer();
             UUID cartId = marketplace.createCart(customerId);
             marketplace.addCartItem(cartId, productId, 1);
 

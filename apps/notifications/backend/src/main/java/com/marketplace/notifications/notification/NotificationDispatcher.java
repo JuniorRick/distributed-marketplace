@@ -35,11 +35,13 @@ public class NotificationDispatcher {
     )
     @Transactional
     public void sendPending() {
+        skipDisabledRecipients();
         for (PendingNotification notification : claimBatch()) {
             try {
                 notificationSender.send(
                     notification.notificationId(),
                     notification.customerId(),
+                    notification.email(),
                     notification.message()
                 );
                 jdbcTemplate.update(
@@ -66,18 +68,36 @@ public class NotificationDispatcher {
         }
     }
 
+    private void skipDisabledRecipients() {
+        jdbcTemplate.update(
+            """
+                UPDATE notifications AS notification
+                SET status = 'SKIPPED', locked_at = NULL,
+                    last_error = 'Email notifications disabled by customer preference'
+                FROM notification_recipients AS recipient
+                WHERE notification.customer_id = recipient.customer_id
+                  AND notification.status IN ('PENDING', 'FAILED')
+                  AND recipient.email_enabled = false
+                """
+        );
+    }
+
     private List<PendingNotification> claimBatch() {
         return jdbcTemplate.query(
             """
                 WITH claimed AS (
-                    SELECT id
-                    FROM notifications
-                    WHERE status IN ('PENDING', 'FAILED')
-                      AND attempts < ?
-                      AND next_attempt_at <= now()
-                      AND (locked_at IS NULL OR locked_at < now() - interval '30 seconds')
-                    ORDER BY created_at, id
-                    FOR UPDATE SKIP LOCKED
+                    SELECT notification.id
+                    FROM notifications AS notification
+                    JOIN notification_recipients AS recipient
+                      ON recipient.customer_id = notification.customer_id
+                    WHERE notification.status IN ('PENDING', 'FAILED')
+                      AND recipient.email_enabled = true
+                      AND recipient.email IS NOT NULL
+                      AND notification.attempts < ?
+                      AND notification.next_attempt_at <= now()
+                      AND (notification.locked_at IS NULL OR notification.locked_at < now() - interval '30 seconds')
+                    ORDER BY notification.created_at, notification.id
+                    FOR UPDATE OF notification SKIP LOCKED
                     LIMIT 100
                 ), updated AS (
                     UPDATE notifications AS notification
@@ -87,13 +107,15 @@ public class NotificationDispatcher {
                     RETURNING notification.public_id, notification.customer_id,
                               notification.message, notification.created_at, notification.id
                 )
-                SELECT public_id, customer_id, message
+                SELECT updated.public_id, updated.customer_id, recipient.email, updated.message
                 FROM updated
+                JOIN notification_recipients AS recipient ON recipient.customer_id = updated.customer_id
                 ORDER BY created_at, id
                 """,
             (resultSet, rowNumber) -> new PendingNotification(
                 resultSet.getObject("public_id", UUID.class),
                 resultSet.getObject("customer_id", UUID.class),
+                resultSet.getString("email"),
                 resultSet.getString("message")
             ),
             maxAttempts
@@ -107,6 +129,6 @@ public class NotificationDispatcher {
         return message.substring(0, Math.min(message.length(), 500));
     }
 
-    private record PendingNotification(UUID notificationId, UUID customerId, String message) {
+    private record PendingNotification(UUID notificationId, UUID customerId, String email, String message) {
     }
 }

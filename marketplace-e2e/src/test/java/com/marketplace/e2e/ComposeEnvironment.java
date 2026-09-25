@@ -23,7 +23,7 @@ final class ComposeEnvironment implements AutoCloseable {
     private static final List<String> BACKEND_SERVICES =
         List.of(
             "catalog-backend", "cart-backend", "orders-backend", "inventory-backend",
-            "payments-backend", "notifications-backend"
+            "payments-backend", "notifications-backend", "customers-backend"
         );
     private static final Duration COMMAND_TIMEOUT = Duration.ofMinutes(15);
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
@@ -66,6 +66,7 @@ final class ComposeEnvironment implements AutoCloseable {
         environment.put("INVENTORY_API_PORT", ports.get("inventory").toString());
         environment.put("PAYMENTS_API_PORT", ports.get("payments").toString());
         environment.put("NOTIFICATIONS_API_PORT", ports.get("notifications").toString());
+        environment.put("CUSTOMERS_API_PORT", ports.get("customers").toString());
         environment.put("PAYMENT_SIMULATOR_OUTCOME", "CAPTURED");
         environment.put("PAYMENT_SIMULATOR_REFUND_OUTCOME", "REFUNDED");
 
@@ -75,14 +76,15 @@ final class ComposeEnvironment implements AutoCloseable {
 
     void start() {
         System.out.printf(
-            "Starting Compose project %s (catalog=%d, cart=%d, orders=%d, inventory=%d, payments=%d, notifications=%d)%n",
+            "Starting Compose project %s (catalog=%d, cart=%d, orders=%d, inventory=%d, payments=%d, notifications=%d, customers=%d)%n",
             projectName,
             port("catalog"),
             port("cart"),
             port("orders"),
             port("inventory"),
             port("payments"),
-            port("notifications")
+            port("notifications"),
+            port("customers")
         );
 
         List<String> arguments = new ArrayList<>(List.of("up", "--detach", "--build", "--wait"));
@@ -253,7 +255,8 @@ final class ComposeEnvironment implements AutoCloseable {
                 "orders",
                 "inventory",
                 "payments",
-                "notifications"
+                "notifications",
+                "customers"
             )) {
                 ServerSocket socket = new ServerSocket(0);
                 socket.setReuseAddress(false);

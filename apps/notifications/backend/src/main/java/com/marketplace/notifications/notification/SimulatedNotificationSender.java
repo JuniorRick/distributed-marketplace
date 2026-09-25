@@ -10,11 +10,12 @@ public class SimulatedNotificationSender implements NotificationSender {
     private static final Logger LOG = LoggerFactory.getLogger(SimulatedNotificationSender.class);
 
     @Override
-    public void send(UUID notificationId, UUID customerId, String message) {
+    public void send(UUID notificationId, UUID customerId, String email, String message) {
         LOG.info(
-            "Simulated notification delivery notificationId={} customerId={} message={}",
+            "Simulated email delivery notificationId={} customerId={} email={} message={}",
             notificationId,
             customerId,
+            email,
             message
         );
     }
