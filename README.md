@@ -38,7 +38,7 @@ Start the complete marketplace from the repository root:
 docker compose up --build
 ```
 
-Compose builds and starts PostgreSQL, Keycloak, the marketplace backends, the API gateway, and the three Nginx-served React frontends. The containers communicate through the internal Compose network, so no Java, Maven, Node.js, or npm installation is required on the host.
+Compose builds and starts PostgreSQL, Keycloak with its own PostgreSQL database, the marketplace backends, the API gateway, and the three Nginx-served React frontends. The containers communicate through the internal Compose network, so no Java, Maven, Node.js, or npm installation is required on the host.
 
 Stop the stack while preserving PostgreSQL data:
 
@@ -103,6 +103,46 @@ The gateway validates JWTs and forwards them downstream, where protected service
 
 Self-registration is enabled in the local realm. The local Keycloak administration credentials are `admin` / `admin`;
 they are development credentials and must be replaced outside this local Compose environment.
+
+Keycloak owns authentication and token issuance. The gateway validates tokens and applies route-level access rules,
+while Cart, Orders, and Customers validate tokens again and enforce customer ownership using the JWT `sub` claim.
+Business authorization must remain in the owning service because the gateway does not own carts, orders, or customer data.
+
+Keycloak uses a dedicated `keycloak` PostgreSQL database and the `marketplace-keycloak-db-data` volume. Realm JSON is
+only bootstrap configuration: `--import-realm` skips the import after the realm exists. Apply later realm/client changes
+through Keycloak administration or a repeatable identity-configuration deployment, not by editing the JSON and restarting.
+
+### Production identity configuration
+
+The production Compose overlay removes direct host ports from databases, brokers, backends, frontends, and observability
+services. Only the gateway and Keycloak retain their base published ports so an external TLS reverse proxy can route to
+them. Copy the variable names from `.env.production.example` into your deployment secret store and inject their values;
+do not commit a populated `.env.production` file.
+
+Validate the merged configuration:
+
+```shell
+docker compose --env-file .env.production \
+  -f compose.yaml -f compose.production.yaml config --quiet
+```
+
+Build and start it:
+
+```shell
+docker compose --env-file .env.production \
+  -f compose.yaml -f compose.production.yaml up -d --build
+```
+
+`KEYCLOAK_PUBLIC_URL` and `MARKETPLACE_PUBLIC_URL` must be public HTTPS URLs. The reverse proxy must overwrite and pass
+the `X-Forwarded-*` headers because Keycloak is configured with `KC_PROXY_HEADERS=xforwarded`. The production realm
+allows redirects only to `MARKETPLACE_PUBLIC_URL`, requires PKCE, disables implicit and password grants, enables brute-force
+protection, and applies a stronger password policy. Configure SMTP and then enable email verification before accepting
+real customer registrations.
+
+This overlay is a hardened single-host reference, not a high-availability production topology. A real deployment should
+use a managed or highly available PostgreSQL database, at least two Keycloak instances, encrypted backups, TLS at the
+ingress, restricted administration access, and credentials supplied by the platform's secret manager. Treat the bootstrap
+administrator as an installation account and manage named administrator accounts through normal Keycloak administration.
 
 ## Event-Driven Checkout
 

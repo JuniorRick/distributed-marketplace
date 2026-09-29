@@ -53,20 +53,50 @@ services:
     volumes:
       - marketplace-rabbitmq-data:/var/lib/rabbitmq
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.7.4
-    command: ["start-dev", "--import-realm"]
+  keycloak-db:
+    image: postgres:17-alpine
     environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U keycloak -d keycloak" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - marketplace-keycloak-db-data:/var/lib/postgresql/data
+
+  keycloak:
+    image: distributed-marketplace-keycloak
+    build:
+      context: .
+      dockerfile: docker/keycloak.Dockerfile
+    command: ["start", "--optimized", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
       KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8090}
       KC_HTTP_ENABLED: "true"
       KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      MARKETPLACE_PUBLIC_URL: http://localhost:${GATEWAY_PORT:-8080}
     ports:
       - "${KEYCLOAK_PORT:-8090}:8080"
     volumes:
       - ./infra/keycloak/marketplace-realm.json:/opt/keycloak/data/import/marketplace-realm.json:ro
-      - marketplace-keycloak-data:/opt/keycloak/data
+    healthcheck:
+      test: [ "CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000; printf \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; grep -q \"200 OK\" <&3'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 20s
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
 
   kafka:
     image: apache/kafka:4.1.1
@@ -367,7 +397,7 @@ services:
       - "${GATEWAY_PORT:-8080}:8080"
     depends_on:
       keycloak:
-        condition: service_started
+        condition: service_healthy
       catalog-backend:
         condition: service_started
       cart-backend:
@@ -390,6 +420,8 @@ services:
       dockerfile: docker/frontend.Dockerfile
       args:
         SERVICE: catalog
+        VITE_OIDC_URL: http://localhost:${KEYCLOAK_PORT:-8090}
+        VITE_MARKETPLACE_URL: http://localhost:${GATEWAY_PORT:-8080}
     ports:
       - "${CATALOG_UI_PORT:-5173}:80"
     depends_on:
@@ -405,6 +437,8 @@ services:
       dockerfile: docker/frontend.Dockerfile
       args:
         SERVICE: cart
+        VITE_OIDC_URL: http://localhost:${KEYCLOAK_PORT:-8090}
+        VITE_MARKETPLACE_URL: http://localhost:${GATEWAY_PORT:-8080}
     ports:
       - "${CART_UI_PORT:-5174}:80"
     depends_on:
@@ -420,6 +454,8 @@ services:
       dockerfile: docker/frontend.Dockerfile
       args:
         SERVICE: orders
+        VITE_OIDC_URL: http://localhost:${KEYCLOAK_PORT:-8090}
+        VITE_MARKETPLACE_URL: http://localhost:${GATEWAY_PORT:-8080}
     ports:
       - "${ORDERS_UI_PORT:-5175}:80"
     depends_on:
@@ -472,4 +508,4 @@ volumes:
   marketplace-db-data:
   marketplace-rabbitmq-data:
   marketplace-kafka-data:
-  marketplace-keycloak-data:
+  marketplace-keycloak-db-data:

@@ -1,0 +1,107 @@
+services:
+  marketplace-db:
+    ports: !reset []
+
+  rabbitmq:
+    ports: !reset []
+
+  keycloak-db:
+    environment:
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD}
+    restart: unless-stopped
+
+  keycloak:
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:?Set KEYCLOAK_ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD}
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:?Set KEYCLOAK_PUBLIC_URL, for example https://auth.marketplace.example}
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME_STRICT: "true"
+      MARKETPLACE_PUBLIC_URL: ${MARKETPLACE_PUBLIC_URL:?Set MARKETPLACE_PUBLIC_URL, for example https://marketplace.example}
+    volumes:
+      - ./infra/keycloak/marketplace-realm.production.json:/opt/keycloak/data/import/marketplace-realm.json:ro
+    restart: unless-stopped
+
+  kafka:
+    ports: !reset []
+    restart: unless-stopped
+
+  catalog-backend:
+    ports: !reset []
+    restart: unless-stopped
+
+  cart-backend:
+    environment:
+      OIDC_ISSUER_URI: ${KEYCLOAK_PUBLIC_URL:?Set KEYCLOAK_PUBLIC_URL}/realms/marketplace
+    ports: !reset []
+    restart: unless-stopped
+
+  orders-backend:
+    environment:
+      OIDC_ISSUER_URI: ${KEYCLOAK_PUBLIC_URL:?Set KEYCLOAK_PUBLIC_URL}/realms/marketplace
+    ports: !reset []
+    restart: unless-stopped
+
+  inventory-backend:
+    ports: !reset []
+    restart: unless-stopped
+
+  payments-backend:
+    ports: !reset []
+    restart: unless-stopped
+
+  notifications-backend:
+    ports: !reset []
+    restart: unless-stopped
+
+  customers-backend:
+    environment:
+      OIDC_ISSUER_URI: ${KEYCLOAK_PUBLIC_URL:?Set KEYCLOAK_PUBLIC_URL}/realms/marketplace
+    ports: !reset []
+    restart: unless-stopped
+
+  gateway:
+    environment:
+      OIDC_ISSUER_URI: ${KEYCLOAK_PUBLIC_URL:?Set KEYCLOAK_PUBLIC_URL}/realms/marketplace
+    restart: unless-stopped
+
+  catalog-frontend:
+    build:
+      args:
+        VITE_OIDC_URL: ${KEYCLOAK_PUBLIC_URL:?Set KEYCLOAK_PUBLIC_URL}
+        VITE_MARKETPLACE_URL: ${MARKETPLACE_PUBLIC_URL:?Set MARKETPLACE_PUBLIC_URL}
+    ports: !reset []
+    restart: unless-stopped
+
+  cart-frontend:
+    build:
+      args:
+        VITE_OIDC_URL: ${KEYCLOAK_PUBLIC_URL:?Set KEYCLOAK_PUBLIC_URL}
+        VITE_MARKETPLACE_URL: ${MARKETPLACE_PUBLIC_URL:?Set MARKETPLACE_PUBLIC_URL}
+    ports: !reset []
+    restart: unless-stopped
+
+  orders-frontend:
+    build:
+      args:
+        VITE_OIDC_URL: ${KEYCLOAK_PUBLIC_URL:?Set KEYCLOAK_PUBLIC_URL}
+        VITE_MARKETPLACE_URL: ${MARKETPLACE_PUBLIC_URL:?Set MARKETPLACE_PUBLIC_URL}
+    ports: !reset []
+    restart: unless-stopped
+
+  loki:
+    ports: !reset []
+    restart: unless-stopped
+
+  otel-collector:
+    ports: !reset []
+    restart: unless-stopped
+
+  grafana:
+    ports: !reset []
+    restart: unless-stopped
+
+  prometheus:
+    ports: !reset []
+    restart: unless-stopped
