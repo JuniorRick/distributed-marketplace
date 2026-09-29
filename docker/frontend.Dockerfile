@@ -8,9 +8,11 @@ COPY apps/catalog/frontend/package.json ./apps/catalog/frontend/package.json
 COPY apps/cart/frontend/package.json ./apps/cart/frontend/package.json
 COPY apps/orders/frontend/package.json ./apps/orders/frontend/package.json
 COPY packages/marketplace-ui/package.json ./packages/marketplace-ui/package.json
+COPY packages/marketplace-auth/package.json ./packages/marketplace-auth/package.json
 RUN npm ci
 
 COPY packages/marketplace-ui ./packages/marketplace-ui
+COPY packages/marketplace-auth ./packages/marketplace-auth
 COPY apps/${SERVICE}/frontend ./apps/${SERVICE}/frontend
 RUN npm --prefix apps/${SERVICE}/frontend run build
 

@@ -5,6 +5,21 @@
   width: min(500px, 100%);
 }
 
+.auth-action {
+  min-height: 38px;
+  border: 1px solid var(--mp-color-border);
+  background: var(--mp-color-surface);
+  color: var(--mp-color-text);
+  padding: 0 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.auth-action.primary {
+  background: var(--mp-color-text);
+  color: var(--mp-color-surface);
+}
+
 .catalog-actions .search-box {
   flex: 1;
 }

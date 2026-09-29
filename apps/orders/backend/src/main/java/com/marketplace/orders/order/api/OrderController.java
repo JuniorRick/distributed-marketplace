@@ -2,9 +2,12 @@ package com.marketplace.orders.order.api;
 
 import com.marketplace.orders.order.OrderPersistenceService;
 import com.marketplace.orders.order.OrderWorkflowService;
+import com.marketplace.orders.shared.NotFoundException;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,8 +34,15 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {
-        var result = orderWorkflowService.createFromCart(request.cartId());
+    public ResponseEntity<OrderResponse> createOrder(
+            @Valid @RequestBody CreateOrderRequest request,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        var result = jwt == null
+            ? orderWorkflowService.createFromCart(request.cartId())
+            : orderWorkflowService.createFromCart(
+                request.cartId(), UUID.fromString(jwt.getSubject()), jwt.getTokenValue()
+            );
         var response = orderApiMapper.toResponse(result.order());
         if (response.status().isTerminal()) {
             return ResponseEntity.ok(response);
@@ -44,8 +54,11 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<OrderResponse> getOrder(@PathVariable UUID id) {
+    public ResponseEntity<OrderResponse> getOrder(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
         var order = orderPersistenceService.getByPublicId(id);
+        if (jwt != null && !order.getCustomerId().equals(UUID.fromString(jwt.getSubject()))) {
+            throw new NotFoundException("Order %s was not found".formatted(id));
+        }
         return ResponseEntity.ok(orderApiMapper.toResponse(order));
     }
 }

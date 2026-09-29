@@ -35,6 +35,13 @@ spring:
           initial-interval: 1s
           multiplier: 2
           max-retries: 5
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8090/realms/marketplace}
+          jwk-set-uri: ${OIDC_JWK_SET_URI:http://localhost:8090/realms/marketplace/protocol/openid-connect/certs}
+          audiences: marketplace-api
 
 cart:
   cors:
@@ -44,6 +51,8 @@ catalog:
   base-url: ${CATALOG_BASE_URL:http://localhost:8081}
 
 marketplace:
+  security:
+    enabled: ${CART_SECURITY_ENABLED:true}
   outbox:
     fixed-delay: ${OUTBOX_FIXED_DELAY:1s}
 

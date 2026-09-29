@@ -1,12 +1,14 @@
 package com.marketplace.cart.cart;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.marketplace.cart.catalog.CatalogClient;
 import com.marketplace.cart.cart.repository.Cart;
 import com.marketplace.cart.cart.repository.CartRepository;
+import com.marketplace.cart.shared.NotFoundException;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
@@ -113,5 +115,16 @@ class CartServiceTest {
 
         assertThat(result.getStatus()).isEqualTo(CartStatus.CHECKED_OUT);
         verify(cartRepository).save(cart);
+    }
+
+    @Test
+    void doesNotExposeAnotherCustomersCart() {
+        UUID cartId = UUID.randomUUID();
+        UUID authenticatedCustomerId = UUID.randomUUID();
+        when(cartRepository.findByPublicIdAndCustomerId(cartId, authenticatedCustomerId))
+            .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> cartService.getByUuid(cartId, authenticatedCustomerId))
+            .isInstanceOf(NotFoundException.class);
     }
 }

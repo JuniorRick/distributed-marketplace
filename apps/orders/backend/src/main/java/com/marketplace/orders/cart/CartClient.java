@@ -26,6 +26,15 @@ public class CartClient {
         return requestCart(restClient.get().uri("/api/carts/{id}", cartId), cartId);
     }
 
+    public CartSnapshot getCart(UUID cartId, String bearerToken) {
+        return requestCart(
+            restClient.get()
+                .uri("/api/carts/{id}", cartId)
+                .headers(headers -> headers.setBearerAuth(bearerToken)),
+            cartId
+        );
+    }
+
     private CartSnapshot requestCart(RestClient.RequestHeadersSpec<?> request, UUID cartId) {
         try {
             CartSnapshot cart = request.retrieve().body(CartSnapshot.class);

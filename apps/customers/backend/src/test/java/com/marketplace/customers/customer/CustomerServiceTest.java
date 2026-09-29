@@ -47,4 +47,25 @@ class CustomerServiceTest {
         assertThat(event.getValue().email()).isEqualTo("user@example.com");
         assertThat(event.getValue().version()).isEqualTo(1);
     }
+
+    @Test
+    void usesTheAuthenticatedIdentitySubjectAsCustomerId() {
+        var subject = java.util.UUID.randomUUID();
+        when(customerRepository.findByPublicId(subject)).thenReturn(java.util.Optional.empty());
+        when(customerRepository.saveAndFlush(any(Customer.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+        CustomerService service = new CustomerService(customerRepository, outboxService);
+
+        var response = service.provision(subject, "shopper@example.com", null);
+
+        assertThat(response.id()).isEqualTo(subject);
+        assertThat(response.email()).isEqualTo("shopper@example.com");
+        verify(outboxService).enqueue(
+            any(),
+            eq("CustomerCreatedEvent.v1"),
+            eq(CustomerMessagingConfiguration.EXCHANGE),
+            eq(CustomerMessagingConfiguration.CUSTOMER_CREATED_EVENT_ROUTING_KEY),
+            any(CustomerProfileEvent.class)
+        );
+    }
 }

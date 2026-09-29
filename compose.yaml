@@ -53,6 +53,21 @@ services:
     volumes:
       - marketplace-rabbitmq-data:/var/lib/rabbitmq
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8090}
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "${KEYCLOAK_PORT:-8090}:8080"
+    volumes:
+      - ./infra/keycloak/marketplace-realm.json:/opt/keycloak/data/import/marketplace-realm.json:ro
+      - marketplace-keycloak-data:/opt/keycloak/data
+
   kafka:
     image: apache/kafka:4.1.1
     hostname: kafka
@@ -139,6 +154,9 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: marketplace
       RABBITMQ_PASSWORD: marketplace
+      CART_SECURITY_ENABLED: ${CART_SECURITY_ENABLED:-true}
+      OIDC_ISSUER_URI: http://localhost:${KEYCLOAK_PORT:-8090}/realms/marketplace
+      OIDC_JWK_SET_URI: http://keycloak:8080/realms/marketplace/protocol/openid-connect/certs
       OTEL_SERVICE_NAME: cart
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
       OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
@@ -176,6 +194,9 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: marketplace
       RABBITMQ_PASSWORD: marketplace
+      ORDERS_SECURITY_ENABLED: ${ORDERS_SECURITY_ENABLED:-true}
+      OIDC_ISSUER_URI: http://localhost:${KEYCLOAK_PORT:-8090}/realms/marketplace
+      OIDC_JWK_SET_URI: http://keycloak:8080/realms/marketplace/protocol/openid-connect/certs
       OTEL_SERVICE_NAME: orders
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
       OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
@@ -303,6 +324,9 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: marketplace
       RABBITMQ_PASSWORD: marketplace
+      CUSTOMERS_SECURITY_ENABLED: ${CUSTOMERS_SECURITY_ENABLED:-true}
+      OIDC_ISSUER_URI: http://localhost:${KEYCLOAK_PORT:-8090}/realms/marketplace
+      OIDC_JWK_SET_URI: http://keycloak:8080/realms/marketplace/protocol/openid-connect/certs
       OTEL_SERVICE_NAME: customers
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
       OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
@@ -318,6 +342,46 @@ services:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
+
+  gateway:
+    image: distributed-marketplace-gateway
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      args:
+        SERVICE: gateway
+    environment:
+      CATALOG_BASE_URL: http://catalog-backend:8081
+      CART_BASE_URL: http://cart-backend:8082
+      ORDERS_BASE_URL: http://orders-backend:8083
+      CUSTOMERS_BASE_URL: http://customers-backend:8087
+      CATALOG_UI_BASE_URL: http://catalog-frontend:80
+      CART_UI_BASE_URL: http://cart-frontend:80
+      ORDERS_UI_BASE_URL: http://orders-frontend:80
+      OIDC_ISSUER_URI: http://localhost:${KEYCLOAK_PORT:-8090}/realms/marketplace
+      OIDC_JWK_SET_URI: http://keycloak:8080/realms/marketplace/protocol/openid-connect/certs
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
+      OTEL_TRACES_SAMPLER_ARG: "1.0"
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    depends_on:
+      keycloak:
+        condition: service_started
+      catalog-backend:
+        condition: service_started
+      cart-backend:
+        condition: service_started
+      orders-backend:
+        condition: service_started
+      customers-backend:
+        condition: service_started
+      catalog-frontend:
+        condition: service_started
+      cart-frontend:
+        condition: service_started
+      orders-frontend:
+        condition: service_started
 
   catalog-frontend:
     image: distributed-marketplace-catalog-frontend
@@ -408,3 +472,4 @@ volumes:
   marketplace-db-data:
   marketplace-rabbitmq-data:
   marketplace-kafka-data:
+  marketplace-keycloak-data:

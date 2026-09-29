@@ -60,6 +60,7 @@ final class ComposeEnvironment implements AutoCloseable {
         environment.put("RABBITMQ_PORT", ports.get("rabbitmq").toString());
         environment.put("RABBITMQ_MANAGEMENT_PORT", ports.get("rabbitmq-management").toString());
         environment.put("KAFKA_PORT", ports.get("kafka").toString());
+        environment.put("KEYCLOAK_PORT", ports.get("keycloak").toString());
         environment.put("CATALOG_API_PORT", ports.get("catalog").toString());
         environment.put("CART_API_PORT", ports.get("cart").toString());
         environment.put("ORDERS_API_PORT", ports.get("orders").toString());
@@ -69,6 +70,9 @@ final class ComposeEnvironment implements AutoCloseable {
         environment.put("CUSTOMERS_API_PORT", ports.get("customers").toString());
         environment.put("PAYMENT_SIMULATOR_OUTCOME", "CAPTURED");
         environment.put("PAYMENT_SIMULATOR_REFUND_OUTCOME", "REFUNDED");
+        environment.put("CART_SECURITY_ENABLED", "false");
+        environment.put("ORDERS_SECURITY_ENABLED", "false");
+        environment.put("CUSTOMERS_SECURITY_ENABLED", "false");
 
         String projectName = "marketplace-e2e-" + UUID.randomUUID().toString().substring(0, 8);
         return new ComposeEnvironment(root, projectName, resolveComposeCommand(root), environment, ports);
@@ -250,6 +254,7 @@ final class ComposeEnvironment implements AutoCloseable {
                 "rabbitmq",
                 "rabbitmq-management",
                 "kafka",
+                "keycloak",
                 "catalog",
                 "cart",
                 "orders",

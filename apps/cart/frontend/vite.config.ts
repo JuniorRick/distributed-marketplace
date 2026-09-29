@@ -2,15 +2,12 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+  base: '/cart/',
   plugins: [react()],
   server: {
     port: 5174,
     proxy: {
-      '/api': 'http://localhost:8082',
-      '/orders-api': {
-        target: 'http://localhost:8083',
-        rewrite: (path) => path.replace(/^\/orders-api/, ''),
-      },
+      '/api': 'http://localhost:8080',
     },
   },
 });

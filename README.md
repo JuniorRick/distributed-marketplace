@@ -11,6 +11,7 @@ Current systems:
 - `apps/payments`: payment capture and payment history SCS
 - `apps/notifications`: order lifecycle notification SCS
 - `apps/customers`: customer contact and notification preference SCS
+- `apps/gateway`: authenticated edge routing for browser traffic
 
 ## Catalog System
 
@@ -37,7 +38,7 @@ Start the complete marketplace from the repository root:
 docker compose up --build
 ```
 
-Compose builds and starts PostgreSQL, the seven Spring Boot backends, and the three Nginx-served React frontends. The containers communicate through the internal Compose network, so no Java, Maven, Node.js, or npm installation is required on the host.
+Compose builds and starts PostgreSQL, Keycloak, the marketplace backends, the API gateway, and the three Nginx-served React frontends. The containers communicate through the internal Compose network, so no Java, Maven, Node.js, or npm installation is required on the host.
 
 Stop the stack while preserving PostgreSQL data:
 
@@ -72,12 +73,15 @@ docker-compose up -d --force-recreate otel-collector
 
 Default URLs:
 
-- Catalog API: `http://localhost:8081/api/products`
-- Catalog UI: `http://localhost:5173`
-- Cart API: `http://localhost:8082/api/carts`
-- Cart UI: `http://localhost:5174`
-- Orders API: `http://localhost:8083/api/orders`
-- Orders UI: `http://localhost:5175`
+- Marketplace entry point: `http://localhost:8080`
+- Catalog UI: `http://localhost:8080/catalog/`
+- Cart UI: `http://localhost:8080/cart/`
+- Orders UI: `http://localhost:8080/orders/`
+- Catalog API through gateway: `http://localhost:8080/api/catalog/products`
+- Cart API through gateway: `http://localhost:8080/api/carts`
+- Orders API through gateway: `http://localhost:8080/api/orders`
+- Current customer API through gateway: `http://localhost:8080/api/customers/me`
+- Keycloak: `http://localhost:8090`
 - Inventory health: `http://localhost:8084/actuator/health`
 - Inventory replenishment: `POST http://localhost:8084/api/inventory/{productId}/replenishments`
 - Payments health: `http://localhost:8085/actuator/health`
@@ -85,6 +89,20 @@ Default URLs:
 - Notifications health: `http://localhost:8086/actuator/health`
 - Customer notifications: `http://localhost:8086/api/notifications/by-customer/{customerId}`
 - Customers API: `http://localhost:8087/api/customers`
+
+## Authentication
+
+Keycloak owns credentials and authentication. The React applications use OpenID Connect Authorization Code flow
+with PKCE through the public `marketplace-spa` client. Access and refresh tokens stay in memory and are not written
+to browser storage.
+
+After authentication, the frontend provisions `POST /api/customers/me`. Customers uses the validated JWT `sub`
+claim as the customer UUID and publishes contact and preference events for Notifications. Cart ignores client-supplied
+customer identifiers while security is enabled, and Cart and Orders enforce resource ownership against the same `sub`.
+The gateway validates JWTs and forwards them downstream, where protected services validate them again.
+
+Self-registration is enabled in the local realm. The local Keycloak administration credentials are `admin` / `admin`;
+they are development credentials and must be replaced outside this local Compose environment.
 
 ## Event-Driven Checkout
 
@@ -142,6 +160,9 @@ RabbitMQ management is available at `http://localhost:15672` using `marketplace`
 The `marketplace-e2e` Maven module owns an isolated Docker Compose environment. It allocates dynamic host ports,
 builds and starts the seven backends and their infrastructure, runs the checkout scenarios, and removes the containers
 and volumes afterward.
+
+Saga E2E tests explicitly disable HTTP security for Customers, Cart, and Orders. Authentication and authorization are
+tested separately so the checkout suite can concentrate on messaging, persistence, and compensation behavior.
 
 Run the successful-checkout scenario from the repository root:
 

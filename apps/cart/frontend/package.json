@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@marketplace/ui": "file:../../../packages/marketplace-ui",
+    "@marketplace/auth": "file:../../../packages/marketplace-auth",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
