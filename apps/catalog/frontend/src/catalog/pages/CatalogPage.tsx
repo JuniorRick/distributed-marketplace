@@ -4,6 +4,7 @@ import { CatalogHeader } from '../components/CatalogHeader';
 import { CatalogSummary } from '../components/CatalogSummary';
 import { ProductGrid } from '../components/ProductGrid';
 import { useProducts } from '../hooks/useProducts';
+import { currentUser, login, logout, register } from '@marketplace/auth';
 
 export function CatalogPage() {
   const { filteredProducts, query, setQuery, isLoading, error } = useProducts();
@@ -16,6 +17,10 @@ export function CatalogPage() {
         itemCount={itemCount}
         cartUrl={cartPageUrl(cart?.id)}
         onQueryChange={setQuery}
+        userName={currentUser()?.displayName ?? null}
+        onLogin={() => void login()}
+        onRegister={() => void register()}
+        onLogout={() => void logout()}
       />
       <CatalogSummary
         visibleProductCount={filteredProducts.length}

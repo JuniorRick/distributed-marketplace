@@ -26,8 +26,17 @@ spring:
     template:
       mandatory: true
       observation-enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8090/realms/marketplace}
+          jwk-set-uri: ${OIDC_JWK_SET_URI:http://localhost:8090/realms/marketplace/protocol/openid-connect/certs}
+          audiences: marketplace-api
 
 marketplace:
+  security:
+    enabled: ${CUSTOMERS_SECURITY_ENABLED:true}
   outbox:
     fixed-delay: ${OUTBOX_FIXED_DELAY:1s}
 

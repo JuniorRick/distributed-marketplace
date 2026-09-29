@@ -50,6 +50,13 @@ public class CustomerService {
     }
 
     @Transactional
+    public CustomerResponse provision(UUID identitySubject, String email, String phone) {
+        return customerRepository.findByPublicId(identitySubject)
+            .map(customer -> synchronizeIdentityContact(customer, email, phone))
+            .orElseGet(() -> createFromIdentity(identitySubject, email, phone));
+    }
+
+    @Transactional
     public CustomerResponse updateContact(UUID customerId, UpdateContactRequest request) {
         Customer customer = find(customerId);
         if (customerRepository.existsByEmailIgnoreCaseAndPublicIdNot(request.email(), customerId)) {
@@ -80,6 +87,25 @@ public class CustomerService {
     private Customer find(UUID customerId) {
         return customerRepository.findByPublicId(customerId)
             .orElseThrow(() -> new NotFoundException("Customer %s was not found".formatted(customerId)));
+    }
+
+    private CustomerResponse createFromIdentity(UUID identitySubject, String email, String phone) {
+        Customer customer = Customer.create(identitySubject, email, phone, true, false);
+        customerRepository.saveAndFlush(customer);
+        enqueue(customer, "CustomerCreatedEvent.v1", CustomerMessagingConfiguration.CUSTOMER_CREATED_EVENT_ROUTING_KEY);
+        return CustomerResponse.from(customer);
+    }
+
+    private CustomerResponse synchronizeIdentityContact(Customer customer, String email, String phone) {
+        String normalizedPhone = phone == null || phone.isBlank() ? null : phone.trim();
+        boolean unchanged = customer.getEmail().equalsIgnoreCase(email)
+            && java.util.Objects.equals(customer.getPhone(), normalizedPhone);
+        if (!unchanged) {
+            customer.updateContact(email, normalizedPhone);
+            customerRepository.flush();
+            enqueue(customer, "CustomerContactUpdatedEvent.v1", CustomerMessagingConfiguration.CUSTOMER_CONTACT_UPDATED_EVENT_ROUTING_KEY);
+        }
+        return CustomerResponse.from(customer);
     }
 
     private void enqueue(Customer customer, String eventType, String routingKey) {

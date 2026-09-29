@@ -1,12 +1,14 @@
 package com.marketplace.orders.order;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.marketplace.orders.cart.CartClient;
 import com.marketplace.orders.order.repository.Order;
+import com.marketplace.orders.shared.NotFoundException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -60,6 +62,20 @@ class OrderWorkflowServiceTest {
         verify(orderPersistenceService, never()).createPendingAndRequestCheckout(
                 org.mockito.ArgumentMatchers.any()
         );
+    }
+
+    @Test
+    void rejectsCheckoutWhenCartBelongsToAnotherCustomer() {
+        UUID cartId = UUID.randomUUID();
+        UUID authenticatedCustomerId = UUID.randomUUID();
+        String accessToken = "access-token";
+        var cart = activeCart(cartId, UUID.randomUUID());
+        when(orderPersistenceService.findBySourceCartId(cartId)).thenReturn(Optional.empty());
+        when(cartClient.getCart(cartId, accessToken)).thenReturn(cart);
+
+        assertThatThrownBy(() -> orderWorkflowService.createFromCart(cartId, authenticatedCustomerId, accessToken))
+            .isInstanceOf(NotFoundException.class);
+        verify(orderPersistenceService, never()).createPendingAndRequestCheckout(cart);
     }
 
     private static Order pendingOrder(UUID cartId, UUID customerId) {

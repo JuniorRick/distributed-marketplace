@@ -28,7 +28,12 @@ public class CartService {
 
     @Transactional
     public Cart addItem(UUID cartId, UUID productId, int quantity) {
-        Cart cart = findCart(cartId);
+        return addItem(cartId, null, productId, quantity);
+    }
+
+    @Transactional
+    public Cart addItem(UUID cartId, UUID customerId, UUID productId, int quantity) {
+        Cart cart = findCart(cartId, customerId);
         requireActive(cart);
 
         var product = catalogClient.getProduct(productId);
@@ -52,7 +57,12 @@ public class CartService {
 
     @Transactional
     public Cart updateItemQuantity(UUID cartId, UUID itemId, int quantity) {
-        Cart cart = findCart(cartId);
+        return updateItemQuantity(cartId, null, itemId, quantity);
+    }
+
+    @Transactional
+    public Cart updateItemQuantity(UUID cartId, UUID customerId, UUID itemId, int quantity) {
+        Cart cart = findCart(cartId, customerId);
         requireActive(cart);
 
         if (!cart.updateItemQuantity(itemId, quantity)) {
@@ -63,7 +73,12 @@ public class CartService {
 
     @Transactional
     public Cart removeItem(UUID cartId, UUID itemId) {
-        Cart cart = findCart(cartId);
+        return removeItem(cartId, null, itemId);
+    }
+
+    @Transactional
+    public Cart removeItem(UUID cartId, UUID customerId, UUID itemId) {
+        Cart cart = findCart(cartId, customerId);
         requireActive(cart);
 
         if (!cart.removeItem(itemId)) {
@@ -88,9 +103,22 @@ public class CartService {
         return findCart(uuid);
     }
 
+    @Transactional(readOnly = true)
+    public Cart getByUuid(UUID uuid, UUID customerId) {
+        return findCart(uuid, customerId);
+    }
+
     private Cart findCart(UUID uuid) {
         return cartRepository.findByPublicId(uuid)
                 .orElseThrow(() -> new NotFoundException("Cart not found. ID=" + uuid));
+    }
+
+    private Cart findCart(UUID uuid, UUID customerId) {
+        if (customerId == null) {
+            return findCart(uuid);
+        }
+        return cartRepository.findByPublicIdAndCustomerId(uuid, customerId)
+            .orElseThrow(() -> new NotFoundException("Cart not found. ID=" + uuid));
     }
 
     private void requireActive(Cart cart) {

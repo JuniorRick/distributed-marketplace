@@ -1,31 +1,19 @@
 import type { Cart } from '../model/Cart';
+import { authenticatedFetch, currentUser } from '@marketplace/auth';
 
-const cartApiBaseUrl = import.meta.env.VITE_CART_API_BASE_URL ?? '/cart-api';
-const cartFrontendUrl = import.meta.env.VITE_CART_FRONTEND_URL ?? 'http://localhost:5174';
+const cartApiBaseUrl = import.meta.env.VITE_CART_API_BASE_URL ?? '';
+const marketplaceUrl = import.meta.env.VITE_MARKETPLACE_URL ?? 'http://localhost:8080';
+const cartFrontendUrl = import.meta.env.VITE_CART_FRONTEND_URL ?? `${marketplaceUrl}/cart/`;
 const cartIdStorageKey = 'marketplace.activeCartId';
-const customerIdStorageKey = 'marketplace.guestCustomerId';
 
 async function responseError(response: Response) {
   const body = await response.json().catch(() => null);
   return new Error(body?.message ?? `Cart request failed with status ${response.status}`);
 }
 
-function guestCustomerId() {
-  const stored = localStorage.getItem(customerIdStorageKey);
-  if (stored) {
-    return stored;
-  }
-
-  const created = crypto.randomUUID();
-  localStorage.setItem(customerIdStorageKey, created);
-  return created;
-}
-
 async function createCart(): Promise<Cart> {
-  const response = await fetch(`${cartApiBaseUrl}/api/carts`, {
+  const response = await authenticatedFetch(`${cartApiBaseUrl}/api/carts`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ customerId: guestCustomerId() }),
   });
 
   if (!response.ok) {
@@ -38,7 +26,7 @@ async function createCart(): Promise<Cart> {
 }
 
 async function postItem(cartId: string, productId: string): Promise<Response> {
-  return fetch(`${cartApiBaseUrl}/api/carts/${cartId}/items`, {
+  return authenticatedFetch(`${cartApiBaseUrl}/api/carts/${cartId}/items`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ productId, quantity: 1 }),
@@ -46,12 +34,15 @@ async function postItem(cartId: string, productId: string): Promise<Response> {
 }
 
 export async function loadActiveCart(): Promise<Cart | null> {
+  if (!currentUser()) {
+    return null;
+  }
   const cartId = localStorage.getItem(cartIdStorageKey);
   if (!cartId) {
     return null;
   }
 
-  const response = await fetch(`${cartApiBaseUrl}/api/carts/${cartId}`);
+  const response = await authenticatedFetch(`${cartApiBaseUrl}/api/carts/${cartId}`);
   if (response.status === 404) {
     localStorage.removeItem(cartIdStorageKey);
     return null;

@@ -1,4 +1,7 @@
-const catalogFrontendUrl = import.meta.env.VITE_CATALOG_FRONTEND_URL ?? 'http://localhost:5173';
+import { currentUser, logout } from '@marketplace/auth';
+
+const marketplaceUrl = import.meta.env.VITE_MARKETPLACE_URL ?? 'http://localhost:8080';
+const catalogFrontendUrl = import.meta.env.VITE_CATALOG_FRONTEND_URL ?? `${marketplaceUrl}/catalog/`;
 
 export function OrderHeader() {
   return (
@@ -7,7 +10,11 @@ export function OrderHeader() {
         <p className="eyebrow">Distributed Marketplace</p>
         <h1>Order</h1>
       </div>
-      <a className="catalog-link" href={catalogFrontendUrl}>Continue shopping</a>
+      <div className="catalog-actions">
+        <span>{currentUser()?.displayName}</span>
+        <a className="catalog-link" href={catalogFrontendUrl}>Continue shopping</a>
+        <button className="catalog-link" type="button" onClick={() => void logout()}>Sign out</button>
+      </div>
     </section>
   );
 }

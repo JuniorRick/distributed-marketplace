@@ -5,9 +5,15 @@ type CatalogHeaderProps = {
   itemCount: number;
   cartUrl: string;
   onQueryChange: (query: string) => void;
+  userName: string | null;
+  onLogin: () => void;
+  onRegister: () => void;
+  onLogout: () => void;
 };
 
-export function CatalogHeader({ query, itemCount, cartUrl, onQueryChange }: CatalogHeaderProps) {
+export function CatalogHeader({
+  query, itemCount, cartUrl, onQueryChange, userName, onLogin, onRegister, onLogout,
+}: CatalogHeaderProps) {
   return (
     <section className="app-header">
       <div>
@@ -15,6 +21,17 @@ export function CatalogHeader({ query, itemCount, cartUrl, onQueryChange }: Cata
         <h1>Catalog</h1>
       </div>
       <div className="catalog-actions">
+        {userName ? (
+          <>
+            <span>{userName}</span>
+            <button className="auth-action" type="button" onClick={onLogout}>Sign out</button>
+          </>
+        ) : (
+          <>
+            <button className="auth-action" type="button" onClick={onLogin}>Sign in</button>
+            <button className="auth-action primary" type="button" onClick={onRegister}>Create account</button>
+          </>
+        )}
         <label className="search-box">
           <span>Search</span>
           <input

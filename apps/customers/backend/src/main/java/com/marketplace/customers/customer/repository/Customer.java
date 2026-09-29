@@ -41,8 +41,8 @@ public class Customer {
     protected Customer() {
     }
 
-    private Customer(String email, String phone, boolean emailEnabled, boolean smsEnabled) {
-        this.publicId = UUID.randomUUID();
+    private Customer(UUID publicId, String email, String phone, boolean emailEnabled, boolean smsEnabled) {
+        this.publicId = publicId;
         this.email = normalizeEmail(email);
         this.phone = normalizePhone(phone);
         this.emailNotificationsEnabled = emailEnabled;
@@ -51,7 +51,11 @@ public class Customer {
     }
 
     public static Customer create(String email, String phone, boolean emailEnabled, boolean smsEnabled) {
-        return new Customer(email, phone, emailEnabled, smsEnabled);
+        return create(UUID.randomUUID(), email, phone, emailEnabled, smsEnabled);
+    }
+
+    public static Customer create(UUID publicId, String email, String phone, boolean emailEnabled, boolean smsEnabled) {
+        return new Customer(publicId, email, phone, emailEnabled, smsEnabled);
     }
 
     public void updateContact(String email, String phone) {

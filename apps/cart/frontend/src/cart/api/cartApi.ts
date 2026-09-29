@@ -1,4 +1,5 @@
 import type { Cart } from '../model/Cart';
+import { authenticatedFetch } from '@marketplace/auth';
 
 const apiBaseUrl = import.meta.env.VITE_CART_API_BASE_URL ?? '';
 
@@ -11,7 +12,7 @@ async function cartResponse(response: Response): Promise<Cart> {
 }
 
 export async function fetchCart(cartId: string): Promise<Cart> {
-  const response = await fetch(`${apiBaseUrl}/api/carts/${cartId}`);
+  const response = await authenticatedFetch(`${apiBaseUrl}/api/carts/${cartId}`);
   return cartResponse(response);
 }
 
@@ -20,7 +21,7 @@ export async function updateCartItemQuantity(
   itemId: string,
   quantity: number,
 ): Promise<Cart> {
-  const response = await fetch(`${apiBaseUrl}/api/carts/${cartId}/items/${itemId}`, {
+  const response = await authenticatedFetch(`${apiBaseUrl}/api/carts/${cartId}/items/${itemId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ quantity }),
@@ -29,7 +30,7 @@ export async function updateCartItemQuantity(
 }
 
 export async function removeCartItem(cartId: string, itemId: string): Promise<Cart> {
-  const response = await fetch(`${apiBaseUrl}/api/carts/${cartId}/items/${itemId}`, {
+  const response = await authenticatedFetch(`${apiBaseUrl}/api/carts/${cartId}/items/${itemId}`, {
     method: 'DELETE',
   });
   return cartResponse(response);
