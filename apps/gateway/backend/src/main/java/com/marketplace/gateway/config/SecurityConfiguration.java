@@ -17,9 +17,15 @@ public class SecurityConfiguration {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/actuator/health/**", "/catalog/**", "/cart/**", "/orders/**", "/").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/catalog/**").permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers(HttpMethod.GET,
+                    "/actuator/health/**", "/api/products/**", "/catalog/**", "/cart/**", "/orders/**", "/").permitAll()
+                .requestMatchers(HttpMethod.GET,
+                    "/api/carts/*", "/api/orders/*", "/api/customers/me").authenticated()
+                .requestMatchers(HttpMethod.POST,
+                    "/api/carts", "/api/carts/*/items", "/api/orders", "/api/customers/me").authenticated()
+                .requestMatchers(HttpMethod.PATCH, "/api/carts/*/items/*").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/carts/*/items/*").authenticated()
+                .anyRequest().denyAll()
             )
             .oauth2ResourceServer(resourceServer -> resourceServer.jwt(Customizer.withDefaults()))
             .build();

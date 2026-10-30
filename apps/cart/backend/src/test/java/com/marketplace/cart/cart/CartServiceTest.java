@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.any;
 
 import com.marketplace.cart.catalog.CatalogClient;
 import com.marketplace.cart.cart.repository.Cart;
@@ -67,6 +69,27 @@ class CartServiceTest {
                 .thenReturn(Optional.of(existing));
 
         assertThat(cartService.createOrGetActiveCart(customerId)).isSameAs(existing);
+    }
+
+    @Test
+    void findsOnlyTheRequestedCustomersActiveCart() {
+        UUID customerId = UUID.randomUUID();
+        Cart existing = new Cart(customerId);
+        when(cartRepository.findFirstByCustomerIdAndStatus(customerId, CartStatus.ACTIVE))
+            .thenReturn(Optional.of(existing));
+
+        assertThat(cartService.findActiveCart(customerId)).containsSame(existing);
+        verify(cartRepository, never()).save(any());
+    }
+
+    @Test
+    void doesNotCreateACartDuringAnEmptyActiveCartLookup() {
+        UUID customerId = UUID.randomUUID();
+        when(cartRepository.findFirstByCustomerIdAndStatus(customerId, CartStatus.ACTIVE))
+            .thenReturn(Optional.empty());
+
+        assertThat(cartService.findActiveCart(customerId)).isEmpty();
+        verify(cartRepository, never()).save(any());
     }
 
     @Test

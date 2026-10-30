@@ -1,24 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchCart, removeCartItem, updateCartItemQuantity } from '../api/cartApi';
+import { fetchActiveCart, fetchCart, removeCartItem, updateCartItemQuantity } from '../api/cartApi';
 import type { Cart } from '../model/Cart';
 
 export function useCart() {
-  const cartId = useMemo(
+  const requestedCartId = useMemo(
     () => new URLSearchParams(window.location.search).get('cartId'),
     [],
   );
   const [cart, setCart] = useState<Cart | null>(null);
-  const [isLoading, setIsLoading] = useState(Boolean(cartId));
+  const cartId = cart?.id ?? requestedCartId;
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [changingItemId, setChangingItemId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!cartId) {
-      return;
-    }
-
     let cancelled = false;
-    fetchCart(cartId)
+    const request = requestedCartId ? fetchCart(requestedCartId) : fetchActiveCart();
+    request
       .then((response) => {
         if (!cancelled) {
           setCart(response);
@@ -39,7 +37,7 @@ export function useCart() {
     return () => {
       cancelled = true;
     };
-  }, [cartId]);
+  }, [requestedCartId]);
 
   const itemCount = cart?.items.reduce((total, item) => total + item.quantity, 0) ?? 0;
 

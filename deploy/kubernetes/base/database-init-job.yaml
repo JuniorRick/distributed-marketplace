@@ -1,0 +1,62 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: marketplace-db-init
+  labels:
+    app.kubernetes.io/name: marketplace-db-init
+    app.kubernetes.io/component: database-initialization
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: marketplace-db-init
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: create-schemas
+          image: postgres:17-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h marketplace-db -U "$PGUSER" -d marketplace; do sleep 2; done
+              psql -h marketplace-db -d marketplace -v ON_ERROR_STOP=1 <<'SQL'
+              CREATE SCHEMA IF NOT EXISTS catalog;
+              CREATE SCHEMA IF NOT EXISTS cart;
+              CREATE SCHEMA IF NOT EXISTS orders;
+              CREATE SCHEMA IF NOT EXISTS inventory;
+              CREATE SCHEMA IF NOT EXISTS payments;
+              CREATE SCHEMA IF NOT EXISTS notifications;
+              CREATE SCHEMA IF NOT EXISTS customers;
+              SQL
+          env:
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: marketplace-db-credentials
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: marketplace-db-credentials
+                  key: password
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]

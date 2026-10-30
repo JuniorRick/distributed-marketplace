@@ -5,6 +5,7 @@ import com.marketplace.cart.cart.repository.Cart;
 import com.marketplace.cart.cart.repository.CartRepository;
 import com.marketplace.cart.shared.ConflictException;
 import com.marketplace.cart.shared.NotFoundException;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,11 @@ public class CartService {
     public Cart createOrGetActiveCart(UUID customerId) {
         return cartRepository.findFirstByCustomerIdAndStatus(customerId, CartStatus.ACTIVE)
                 .orElseGet(() -> cartRepository.save(new Cart(customerId)));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Cart> findActiveCart(UUID customerId) {
+        return cartRepository.findFirstByCustomerIdAndStatus(customerId, CartStatus.ACTIVE);
     }
 
     @Transactional

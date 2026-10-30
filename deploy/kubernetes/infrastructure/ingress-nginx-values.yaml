@@ -1,0 +1,23 @@
+controller:
+  ingressClassResource:
+    default: true
+  service:
+    type: NodePort
+    nodePorts:
+      http: 30080
+      https: 30443
+  watchIngressWithoutClass: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+defaultBackend:
+  enabled: false

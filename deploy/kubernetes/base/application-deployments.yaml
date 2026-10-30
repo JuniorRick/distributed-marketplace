@@ -1,0 +1,404 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart
+  labels:
+    app.kubernetes.io/name: cart
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cart
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cart
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: cart
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cart
+          image: marketplace/cart:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: marketplace-runtime
+            - secretRef:
+                name: marketplace-rabbitmq-runtime
+          env:
+            - name: CART_DB_URL
+              value: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=cart
+            - name: CART_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: marketplace-db-credentials
+                  key: username
+            - name: CART_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: marketplace-db-credentials
+                  key: password
+            - name: CATALOG_BASE_URL
+              value: http://catalog:8081
+            - name: CART_CORS_ALLOWED_ORIGINS
+              value: http://localhost:8088
+            - name: CART_SECURITY_ENABLED
+              value: "true"
+          startupProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: {path: /actuator/health/readiness, port: http}
+            periodSeconds: 5
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 2
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 768Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders
+  labels:
+    app.kubernetes.io/name: orders
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orders
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: orders
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: orders
+          image: marketplace/orders:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {name: http, containerPort: 8083}
+          envFrom:
+            - configMapRef: {name: marketplace-runtime}
+            - secretRef: {name: marketplace-rabbitmq-runtime}
+          env:
+            - name: ORDERS_DB_URL
+              value: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=orders
+            - name: ORDERS_DB_USER
+              valueFrom: {secretKeyRef: {name: marketplace-db-credentials, key: username}}
+            - name: ORDERS_DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: marketplace-db-credentials, key: password}}
+            - {name: CART_BASE_URL, value: "http://cart:8082"}
+            - {name: ORDERS_SECURITY_ENABLED, value: "true"}
+          startupProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: {path: /actuator/health/readiness, port: http}
+            periodSeconds: 5
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 2
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 768Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory
+  labels:
+    app.kubernetes.io/name: inventory
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: inventory
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: inventory
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: inventory
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: inventory
+          image: marketplace/inventory:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {name: http, containerPort: 8084}
+          envFrom:
+            - configMapRef: {name: marketplace-runtime}
+            - secretRef: {name: marketplace-rabbitmq-runtime}
+          env:
+            - name: INVENTORY_DB_URL
+              value: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=inventory
+            - name: INVENTORY_DB_USER
+              valueFrom: {secretKeyRef: {name: marketplace-db-credentials, key: username}}
+            - name: INVENTORY_DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: marketplace-db-credentials, key: password}}
+          startupProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: {path: /actuator/health/readiness, port: http}
+            periodSeconds: 5
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 2
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 768Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments
+  labels:
+    app.kubernetes.io/name: payments
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payments
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: payments
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: payments
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: payments
+          image: marketplace/payments:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {name: http, containerPort: 8085}
+          envFrom:
+            - configMapRef: {name: marketplace-runtime}
+            - secretRef: {name: marketplace-rabbitmq-runtime}
+          env:
+            - name: PAYMENTS_DB_URL
+              value: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=payments
+            - name: PAYMENTS_DB_USER
+              valueFrom: {secretKeyRef: {name: marketplace-db-credentials, key: username}}
+            - name: PAYMENTS_DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: marketplace-db-credentials, key: password}}
+            - {name: PAYMENT_SIMULATOR_OUTCOME, value: CAPTURED}
+            - {name: PAYMENT_SIMULATOR_REFUND_OUTCOME, value: REFUNDED}
+          startupProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: {path: /actuator/health/readiness, port: http}
+            periodSeconds: 5
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 2
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 768Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifications
+  labels:
+    app.kubernetes.io/name: notifications
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notifications
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notifications
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: notifications
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: notifications
+          image: marketplace/notifications:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {name: http, containerPort: 8086}
+          envFrom:
+            - configMapRef: {name: marketplace-runtime}
+            - secretRef: {name: marketplace-rabbitmq-runtime}
+          env:
+            - name: NOTIFICATIONS_DB_URL
+              value: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=notifications
+            - name: NOTIFICATIONS_DB_USER
+              valueFrom: {secretKeyRef: {name: marketplace-db-credentials, key: username}}
+            - name: NOTIFICATIONS_DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: marketplace-db-credentials, key: password}}
+          startupProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: {path: /actuator/health/readiness, port: http}
+            periodSeconds: 5
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 2
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 768Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customers
+  labels:
+    app.kubernetes.io/name: customers
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: customers
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: customers
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: customers
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: customers
+          image: marketplace/customers:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {name: http, containerPort: 8087}
+          envFrom:
+            - configMapRef: {name: marketplace-runtime}
+            - secretRef: {name: marketplace-rabbitmq-runtime}
+          env:
+            - name: CUSTOMERS_DB_URL
+              value: jdbc:postgresql://marketplace-db:5432/marketplace?currentSchema=customers
+            - name: CUSTOMERS_DB_USER
+              valueFrom: {secretKeyRef: {name: marketplace-db-credentials, key: username}}
+            - name: CUSTOMERS_DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: marketplace-db-credentials, key: password}}
+            - {name: CUSTOMERS_SECURITY_ENABLED, value: "true"}
+          startupProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: {path: /actuator/health/readiness, port: http}
+            periodSeconds: 5
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 2
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 768Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}

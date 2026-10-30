@@ -4,7 +4,6 @@ import { authenticatedFetch, currentUser } from '@marketplace/auth';
 const cartApiBaseUrl = import.meta.env.VITE_CART_API_BASE_URL ?? '';
 const marketplaceUrl = import.meta.env.VITE_MARKETPLACE_URL ?? 'http://localhost:8080';
 const cartFrontendUrl = import.meta.env.VITE_CART_FRONTEND_URL ?? `${marketplaceUrl}/cart/`;
-const cartIdStorageKey = 'marketplace.activeCartId';
 
 async function responseError(response: Response) {
   const body = await response.json().catch(() => null);
@@ -20,9 +19,7 @@ async function createCart(): Promise<Cart> {
     throw await responseError(response);
   }
 
-  const cart: Cart = await response.json();
-  localStorage.setItem(cartIdStorageKey, cart.id);
-  return cart;
+  return response.json();
 }
 
 async function postItem(cartId: string, productId: string): Promise<Response> {
@@ -37,37 +34,22 @@ export async function loadActiveCart(): Promise<Cart | null> {
   if (!currentUser()) {
     return null;
   }
-  const cartId = localStorage.getItem(cartIdStorageKey);
-  if (!cartId) {
-    return null;
-  }
-
-  const response = await authenticatedFetch(`${cartApiBaseUrl}/api/carts/${cartId}`);
-  if (response.status === 404) {
-    localStorage.removeItem(cartIdStorageKey);
+  const response = await authenticatedFetch(`${cartApiBaseUrl}/api/carts/active`);
+  if (response.status === 204) {
     return null;
   }
   if (!response.ok) {
     throw await responseError(response);
   }
 
-  const cart: Cart = await response.json();
-  if (cart.status !== 'ACTIVE') {
-    localStorage.removeItem(cartIdStorageKey);
-    return null;
-  }
-  return cart;
+  return response.json();
 }
 
 export async function addProductToCart(productId: string): Promise<Cart> {
-  let cartId = localStorage.getItem(cartIdStorageKey);
-  if (!cartId) {
-    cartId = (await createCart()).id;
-  }
+  let cartId = (await createCart()).id;
 
   let response = await postItem(cartId, productId);
   if (response.status === 404 || response.status === 409) {
-    localStorage.removeItem(cartIdStorageKey);
     cartId = (await createCart()).id;
     response = await postItem(cartId, productId);
   }
