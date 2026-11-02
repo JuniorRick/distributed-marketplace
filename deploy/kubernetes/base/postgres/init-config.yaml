@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: marketplace-db-init
+data:
+  001-create-catalog-schema.sql: |
+    CREATE SCHEMA IF NOT EXISTS catalog;
+    CREATE SCHEMA IF NOT EXISTS cart;
+    CREATE SCHEMA IF NOT EXISTS orders;
+    CREATE SCHEMA IF NOT EXISTS inventory;
+    CREATE SCHEMA IF NOT EXISTS payments;
+    CREATE SCHEMA IF NOT EXISTS notifications;
+    CREATE SCHEMA IF NOT EXISTS customers;

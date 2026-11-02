@@ -29,7 +29,7 @@ export function CartPage() {
 
       {isLoading && <p className="state-message">Loading cart...</p>}
       {error && <p className="state-message error">{error}</p>}
-      {!cartId && <p className="state-message">Add a product from Catalog to start a cart.</p>}
+      {!isLoading && !error && !cart && <p className="state-message">Your cart is empty.</p>}
       {cart && cart.items.length === 0 && <p className="state-message">Your cart is empty.</p>}
 
       {cart && cart.items.length > 0 && (

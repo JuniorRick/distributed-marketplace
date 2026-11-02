@@ -16,6 +16,11 @@ export async function fetchCart(cartId: string): Promise<Cart> {
   return cartResponse(response);
 }
 
+export async function fetchActiveCart(): Promise<Cart | null> {
+  const response = await authenticatedFetch(`${apiBaseUrl}/api/carts/active`);
+  return response.status === 204 ? null : cartResponse(response);
+}
+
 export async function updateCartItemQuantity(
   cartId: string,
   itemId: string,

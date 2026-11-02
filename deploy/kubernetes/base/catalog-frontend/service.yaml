@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-frontend
+  labels:
+    app.kubernetes.io/name: catalog-frontend
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: catalog-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

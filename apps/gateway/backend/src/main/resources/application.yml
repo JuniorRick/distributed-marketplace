@@ -19,21 +19,21 @@ spring:
             - id: catalog-api
               uri: ${CATALOG_BASE_URL:http://localhost:8081}
               predicates:
-                - Path=/api/catalog/**
-              filters:
-                - RewritePath=/api/catalog/?(?<segment>.*), /api/$\{segment}
+                - Path=/api/products,/api/products/**
+                - Method=GET
             - id: cart-api
               uri: ${CART_BASE_URL:http://localhost:8082}
               predicates:
-                - Path=/api/carts/**
+                - Path=/api/carts,/api/carts/**
             - id: orders-api
               uri: ${ORDERS_BASE_URL:http://localhost:8083}
               predicates:
-                - Path=/api/orders/**
+                - Path=/api/orders,/api/orders/**
             - id: customers-api
               uri: ${CUSTOMERS_BASE_URL:http://localhost:8087}
               predicates:
-                - Path=/api/customers/**
+                - Path=/api/customers/me
+                - Method=GET,POST
             - id: catalog-ui
               uri: ${CATALOG_UI_BASE_URL:http://localhost:5173}
               predicates:

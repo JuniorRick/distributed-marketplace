@@ -65,6 +65,13 @@ Follow logs for the complete stack:
 docker compose logs --follow
 ```
 
+## Local Kubernetes
+
+The Kubernetes environment deploys the complete marketplace stack, identity provider, messaging infrastructure, and
+observability services to a local kind cluster. It is intentionally separate from the Docker Compose E2E environment.
+Setup, lifecycle commands, and inspection examples are documented in
+[`deploy/kubernetes/README.md`](deploy/kubernetes/README.md).
+
 restart container, e.g. restart otel-collector
 ```shell
 docker-compose up -d --force-recreate otel-collector
@@ -77,7 +84,8 @@ Default URLs:
 - Catalog UI: `http://localhost:8080/catalog/`
 - Cart UI: `http://localhost:8080/cart/`
 - Orders UI: `http://localhost:8080/orders/`
-- Catalog API through gateway: `http://localhost:8080/api/catalog/products`
+- Catalog product page: `http://localhost:8080/catalog/products`
+- Catalog API through gateway: `http://localhost:8080/api/products`
 - Cart API through gateway: `http://localhost:8080/api/carts`
 - Orders API through gateway: `http://localhost:8080/api/orders`
 - Current customer API through gateway: `http://localhost:8080/api/customers/me`
@@ -100,6 +108,11 @@ After authentication, the frontend provisions `POST /api/customers/me`. Customer
 claim as the customer UUID and publishes contact and preference events for Notifications. Cart ignores client-supplied
 customer identifiers while security is enabled, and Cart and Orders enforce resource ownership against the same `sub`.
 The gateway validates JWTs and forwards them downstream, where protected services validate them again.
+
+The active cart is recovered from `GET /api/carts/active` using the authenticated JWT subject. It returns `200` with
+the cart and its items, or `204` when no active cart exists; reading it never creates a cart. Both the Catalog cart badge
+and `/cart/` use this lookup, so recovery works across browsers and account switches without a cart ID in local storage.
+Explicit `/cart/?cartId=...` links continue to load that specific cart with the backend's ownership checks.
 
 Self-registration is enabled in the local realm. The local Keycloak administration credentials are `admin` / `admin`;
 they are development credentials and must be replaced outside this local Compose environment.
